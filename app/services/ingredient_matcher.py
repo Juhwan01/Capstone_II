@@ -111,7 +111,7 @@ class IngredientMatcher:
                 category_weight = self.ingredient_categories.get(available["category"], 0.5)
 
                 total_score = (
-                    freshness * 0.25 +
+                    freshness * 0.3 +
                     distance * 0.25 +
                     value_balance * 0.2 +
                     preference * 0.15 +
