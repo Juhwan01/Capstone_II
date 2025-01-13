@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
 from db.base import Base
+from sqlalchemy.orm import relationship
 
 class Ingredient(Base):
     __tablename__ = 'ingredients'
@@ -11,3 +12,5 @@ class Ingredient(Base):
     location_lat = Column(Float, nullable=False)
     location_lon = Column(Float, nullable=False)
     nutrition = Column(JSON, nullable=True)
+
+    requests = relationship("IngredientRequest", back_populates="ingredient", cascade="all, delete-orphan")
