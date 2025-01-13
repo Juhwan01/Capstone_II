@@ -1,74 +1,153 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import List
-import random
-
-from api.dependencies import get_db, get_current_user
-from schemas.recipes import Recipe, RecipeCreate, RecommendationResponse
-from schemas.user import UserProfile
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import Field
+from api.dependencies import get_async_db, get_current_active_user
+from crud import crud_recipe, crud_user
+from models.models import User
+from schemas.recipes import Recipe, RecipeCreate, RecipeUpdate,RecipeRating
+from schemas.users import UserProfile
 from services.recommender import RecipeRecommender
-from crud.crud_recipe import recipe
-from crud.crud_user import user
-from models.models import QValue, User
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
-recommender = RecipeRecommender()
 
 @router.post("/", response_model=Recipe)
-def create_recipe(
+async def create_recipe(
+    *,
+    db: AsyncSession = Depends(get_async_db),
     recipe_in: RecipeCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
-    recipe_in_dict = recipe_in.dict()
-    recipe_in_dict["created_by"] = current_user.id
-    return recipe.create(db=db, obj_in=recipe_in_dict)
+    """Create new recipe"""
+    recipe = await crud_recipe.recipe.create_with_owner(
+        db=db,
+        obj_in=recipe_in,
+        owner_id=current_user.id
+    )
+    return recipe
+
+@router.get("/", response_model=List[Recipe])
+async def list_recipes(
+    db: AsyncSession = Depends(get_async_db),
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_active_user)
+):
+    """List all recipes"""
+    recipes = await crud_recipe.recipe.get_multi(
+        db=db,
+        skip=skip,
+        limit=limit
+    )
+    return recipes
 
 @router.get("/{recipe_id}", response_model=Recipe)
-def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
-    db_recipe = recipe.get(db=db, id=recipe_id)
-    if db_recipe is None:
-        raise HTTPException(status_code=404, detail="Recipe not found")
-    return db_recipe
-
-@router.get("/recommendations/", response_model=List[RecommendationResponse])
-def get_recommendations(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+async def get_recipe(
+    recipe_id: int,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
-    if not current_user.profile:
-        raise HTTPException(status_code=404, detail="User profile not found")
-    
-    recipes = recipe.get_multi(db=db)
-    user_profile = UserProfile.from_orm(current_user.profile)
-    
-    q_values = {
-        qv.recipe_id: qv.value 
-        for qv in db.query(QValue).filter(QValue.user_id == current_user.id).all()
-    }
-    
-    recipe_scores = [
-        (rec, recommender.calculate_recipe_score(
-            Recipe.from_orm(rec),
-            user_profile,
-            q_values.get(rec.id, 0)
-        ))
-        for rec in recipes
-    ]
-    
-    recipe_scores.sort(key=lambda x: x[1], reverse=True)
-    recommendations = recipe_scores[:3]
-    
-    remaining_recipes = [r for r, _ in recipe_scores[3:]]
-    if remaining_recipes:
-        exploration_recipe = random.choice(remaining_recipes)
-        recommendations.append((exploration_recipe, 0))
-    
-    return [
-        RecommendationResponse(
-            recipe=Recipe.from_orm(recipe),
-            score=score,
-            is_exploration=(i == 3)
+    """Get recipe by ID"""
+    recipe = await crud_recipe.recipe.get(db=db, id=recipe_id)
+    if not recipe:
+        raise HTTPException(
+            status_code=404,
+            detail="Recipe not found"
         )
-        for i, (recipe, score) in enumerate(recommendations)
-    ]
+    return recipe
+
+@router.put("/{recipe_id}", response_model=Recipe)
+async def update_recipe(
+    *,
+    db: AsyncSession = Depends(get_async_db),
+    recipe_id: int,
+    recipe_in: RecipeUpdate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update recipe"""
+    recipe = await crud_recipe.recipe.get(db=db, id=recipe_id)
+    if not recipe:
+        raise HTTPException(
+            status_code=404,
+            detail="Recipe not found"
+        )
+    if recipe.created_by != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Not enough permissions"
+        )
+    recipe = await crud_recipe.recipe.update(
+        db=db,
+        db_obj=recipe,
+        obj_in=recipe_in
+    )
+    return recipe
+
+@router.delete("/{recipe_id}")
+async def delete_recipe(
+    *,
+    db: AsyncSession = Depends(get_async_db),
+    recipe_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete recipe"""
+    recipe = await crud_recipe.recipe.get(db=db, id=recipe_id)
+    if not recipe:
+        raise HTTPException(
+            status_code=404,
+            detail="Recipe not found"
+        )
+    if recipe.created_by != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Not enough permissions"
+        )
+    await crud_recipe.recipe.remove(db=db, id=recipe_id)
+    return {"success": True}
+
+@router.post("/{recipe_id}/rating", response_model=UserProfile)
+async def rate_recipe(
+    *,
+    db: AsyncSession = Depends(get_async_db),
+    recipe_id: int,
+    rating_in: RecipeRating,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Rate a recipe and update Q-values"""
+    # Check if recipe exists
+    recipe = await crud_recipe.recipe.get(db=db, id=recipe_id)
+    if not recipe:
+        raise HTTPException(
+            status_code=404,
+            detail="Recipe not found"
+        )
+    
+    # Update user profile with rating
+    user_profile = await crud_user.user.get_profile(db=db, user_id=current_user.id)
+    if not user_profile:
+        raise HTTPException(
+            status_code=404,
+            detail="User profile not found"
+        )
+    
+    # Update rating
+    ratings = user_profile.ratings or {}
+    ratings[str(recipe_id)] = rating_in.rating
+    user_profile.ratings = ratings
+    
+    # Add to history if not exists
+    if recipe_id not in user_profile.recipe_history:
+        user_profile.recipe_history.append(recipe_id)
+    
+    # Update Q-value based on rating
+    recommender = RecipeRecommender()
+    await recommender.update_q_value(
+        db=db,
+        user_id=current_user.id,
+        recipe_id=recipe_id,
+        reward=rating_in.rating / 5.0  # Normalize rating to 0-1 range
+    )
+    
+    await db.commit()
+    await db.refresh(user_profile)
+    return user_profile
