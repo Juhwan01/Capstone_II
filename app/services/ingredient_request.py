@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from models import IngredientRequest, Ingredient
+from models import ingredientRequest, Ingredient
 from datetime import datetime
 
 
