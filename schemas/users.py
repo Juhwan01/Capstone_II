@@ -63,3 +63,6 @@ class RecommendationResponse(BaseModel):
         ..., 
         description="탐색적 추천 여부"
     )
+
+class TrustScoreUpdate(BaseModel):
+    trust_score: float = Field(..., ge=0, le=100, description="신뢰도 점수 (0-100)")
