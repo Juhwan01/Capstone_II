@@ -4,6 +4,7 @@ from sqlalchemy import select
 from core.security import get_password_hash, verify_password
 from models.models import User
 from schemas.auth import UserCreate
+from models.models import UserRole
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
     result = await db.execute(
@@ -35,4 +36,30 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> O
         return None
     if not verify_password(password, user.hashed_password):
         return None
+    return user
+
+async def update_user_role(
+    db: AsyncSession, user_id: int, trust_score: float
+) -> Optional[User]:
+    """Update user role based on trust score"""
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        return None
+
+    # Update role based on trust score
+    if trust_score >= 90:
+        user.role = UserRole.CHEF
+    elif trust_score >= 70:
+        user.role = UserRole.MASTER
+    elif trust_score >= 50:
+        user.role = UserRole.EXPERT
+    else:
+        user.role = UserRole.NEWBIE
+
+    user.trust_score = trust_score
+    await db.commit()
+    await db.refresh(user)
     return user

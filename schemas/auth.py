@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime
 from typing_extensions import Annotated
 from pydantic import BaseModel, EmailStr, Field
+from models.models import UserRole
 
 # 토큰 응답 스키마
 class Token(BaseModel):
@@ -37,12 +38,13 @@ class UserUpdate(BaseModel):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
     password: Optional[str] = Field(None, min_length=8)
 
-# 사용자 정보 응답 스키마
 class User(UserBase):
-    id: int            # 사용자 고유 ID
-    is_active: bool    # 계정 활성화 상태
-    created_at: datetime  # 생성 시간
-    updated_at: datetime  # 수정 시간
+    id: int
+    is_active: bool
+    role: UserRole
+    trust_score: float
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
-        from_attributes = True  # SQLAlchemy 모델 변환 설정
+        from_attributes = True

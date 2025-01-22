@@ -1,7 +1,14 @@
-from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean, DateTime
+from enum import Enum
+from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean, DateTime, Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from db.base import Base
+
+class UserRole(str, Enum):
+    CHEF = "셰프"
+    MASTER = "요리마스터"
+    EXPERT = "집밥달인"
+    NEWBIE = "새댁/새싹"
 
 class User(Base):
     __tablename__ = "users"
@@ -11,6 +18,8 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+    role = Column(SQLAlchemyEnum(UserRole), default=UserRole.NEWBIE)
+    trust_score = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -24,9 +33,9 @@ class Recipe(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
-    ingredients = Column(JSON, nullable=False)  # {ingredient_name: amount}
-    difficulty = Column(Integer, nullable=False)  # 1-5 scale
-    cooking_time = Column(Integer, nullable=False)  # in minutes
+    ingredients = Column(JSON, nullable=False)
+    difficulty = Column(Integer, nullable=False)
+    cooking_time = Column(Integer, nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -40,11 +49,11 @@ class UserProfile(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-    owned_ingredients = Column(JSON, default={})  # {ingredient_name: amount}
-    cooking_skill = Column(Integer, nullable=False)  # 1-5 scale
-    preferred_cooking_time = Column(Integer)  # in minutes
-    recipe_history = Column(JSON, default=[])  # List of recipe IDs
-    ratings = Column(JSON, default={})  # {recipe_id: rating}
+    owned_ingredients = Column(JSON, default={})
+    cooking_skill = Column(Integer, nullable=False)
+    preferred_cooking_time = Column(Integer)
+    recipe_history = Column(JSON, default=[])
+    ratings = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
