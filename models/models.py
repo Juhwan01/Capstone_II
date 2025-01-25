@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from db.base import Base
+from geoalchemy2 import Geometry
 
 class UserRole(str, Enum):
     CHEF = "셰프"
@@ -17,59 +18,57 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    is_active = Column(Boolean, default=True)
-    role = Column(SQLAlchemyEnum(UserRole), default=UserRole.NEWBIE)
     trust_score = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    profile = relationship("UserProfile", back_populates="user", uselist=False)
-    recipes = relationship("Recipe", back_populates="creator")
-    q_values = relationship("QValue", back_populates="user")
+    requests = relationship("IngredientRequest", back_populates="user")
 
-class Recipe(Base):
-    __tablename__ = "recipes"
+class Transaction(Base):
+    __tablename__ = 'transaction'
     
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True, nullable=False)
-    ingredients = Column(JSON, nullable=False)
-    difficulty = Column(Integer, nullable=False)
-    cooking_time = Column(Integer, nullable=False)
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    creator = relationship("User", back_populates="recipes")
-    q_values = relationship("QValue", back_populates="recipe")
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    seller_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    buyer_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    request_id = Column(Integer, ForeignKey('ingredient_requests.id'), nullable=False)
+    transaction_location = Column(Geometry(geometry_type='POINT'))
 
-class UserProfile(Base):
-    __tablename__ = "user_profiles"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-    owned_ingredients = Column(JSON, default={})
-    cooking_skill = Column(Integer, nullable=False)
-    preferred_cooking_time = Column(Integer)
-    recipe_history = Column(JSON, default=[])
-    ratings = Column(JSON, default={})
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    user = relationship("User", back_populates="profile")
+    seller = relationship('User', foreign_keys=[seller_id], backref='sold_transactions')
+    buyer = relationship('User', foreign_keys=[buyer_id], backref='bought_transactions')
+    request = relationship('IngredientRequest', backref='transactions')
 
-class QValue(Base):
-    __tablename__ = "q_values"
+class IngredientRequest(Base):
+    __tablename__ = 'ingredient_requests'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # 고유 ID
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False)  # 사용자 ID
+    ingredient_id = Column(Integer, ForeignKey('ingredients.id', ondelete="CASCADE"), nullable=False)  # 식재료 ID
+    request_type = Column(String(50), nullable=False)  # 요청 유형 ('Request', 'Offer')
+    status = Column(String(50), default='Pending')  # 요청 상태 ('Pending', 'Completed', 'Rejected')
+    created_at = Column(DateTime, default=datetime.utcnow)  # 요청 생성 시간
+
+    # 관계 정의
+    user = relationship("User", back_populates="requests")
+    ingredient = relationship("Ingredient", back_populates="requests")
+
+class Ingredient(Base):
+    __tablename__ = 'ingredients'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    expiry_date = Column(DateTime, nullable=False)
+
+    requests = relationship("IngredientRequest", back_populates="ingredient", cascade="all, delete-orphan")
+    sales = relationship("Sale", back_populates="ingredient", cascade="all, delete-orphan")
+
+class Sale(Base):
+    __tablename__ = 'sales'
+    id = Column(Integer, primary_key=True, autoincrement=True)  # 판매 고유 ID
+    ingredient_id = Column(Integer, ForeignKey('ingredients.id'), nullable=False)  # 식재료 ID (Foreign Key)
+    seller_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # 판매자 ID (Foreign Key)
+    value = Column(Float, nullable=False)  # 판매 가격
+    location_lat = Column(Float, nullable=False)  # 판매 위치 위도
+    location_lon = Column(Float, nullable=False)  # 판매 위치 경도
+    status = Column(String, nullable=False, default="Available")  # 판매 상태
+    created_at = Column(DateTime, default=datetime.utcnow)  # 등록일
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)  # 수정일
     
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=False)
-    value = Column(Float, default=0.0, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    user = relationship("User", back_populates="q_values")
-    recipe = relationship("Recipe", back_populates="q_values")
+    ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
+
