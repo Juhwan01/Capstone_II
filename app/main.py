@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from api.routes.ingredients import router as ingredients_router
+from api.routes.sale import router as sales_router
 from db.init_db import init_db
 import uvicorn
 
@@ -10,6 +11,7 @@ async def startup():
     await init_db()
 
 app.include_router(ingredients_router, prefix="/ingredients", tags=["Ingredients"])
+app.include_router(sales_router  , prefix="/sale" , tags= ["Ingredients"])
 
 # uvicorn 실행 코드
 if __name__ == "__main__":

@@ -11,3 +11,4 @@ class User(Base):
 
     # Relationship with IngredientRequest
     requests = relationship("IngredientRequest", back_populates="user", cascade="all, delete-orphan")
+    sales = relationship("Sale", back_populates="seller", cascade="all, delete-orphan")

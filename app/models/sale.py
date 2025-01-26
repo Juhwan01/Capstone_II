@@ -13,5 +13,6 @@ class Sale(Base):
     location_lat = Column(Float, nullable=False)  # 판매 위치 위도
     location_lon = Column(Float, nullable=False)  # 판매 위치 경도
     status = Column(String, nullable=False, default="Available")  # 판매 상태
-    
+
     ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
+    seller = relationship("User", back_populates="sales")  # 관계 설정

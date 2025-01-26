@@ -8,9 +8,6 @@ class Ingredient(Base):
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)
     expiry_date = Column(DateTime, nullable=False)
-    value = Column(Float, nullable=False)
-    location_lat = Column(Float, nullable=False)
-    location_lon = Column(Float, nullable=False)
-    nutrition = Column(JSON, nullable=True)
 
     requests = relationship("IngredientRequest", back_populates="ingredient", cascade="all, delete-orphan")
+    sales = relationship("Sale", back_populates="ingredient", cascade="all, delete-orphan")
