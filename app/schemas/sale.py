@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional
+from datetime import datetime
 
 class SaleCreate(BaseModel):
     ingredient_id: int
@@ -8,6 +9,7 @@ class SaleCreate(BaseModel):
     value: float
     location_lat: float
     location_lon: float
+    expiry_date: datetime
     status: Optional[str] = Field(default="Available")
 
 class SaleResponse(BaseModel):
@@ -17,6 +19,7 @@ class SaleResponse(BaseModel):
     seller_id: int
     value: float
     location : dict
+    expiry_date: datetime
     status: str
 
     class Config:

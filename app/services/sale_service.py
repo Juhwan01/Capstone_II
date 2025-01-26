@@ -6,6 +6,8 @@ from models.sale import Sale
 from models.ingredient import Ingredient
 from models.user import User
 from datetime import datetime
+import pytz
+
 
 class SaleService:
     def __init__(self, db: AsyncSession):
@@ -28,6 +30,13 @@ class SaleService:
             seller = seller.scalars().first()
             if not seller:
                 return {"error": f"Seller with ID {sale_data['seller_id']} does not exist"}
+            
+            expiry_date = sale_data['expiry_date']
+            if isinstance(expiry_date, datetime):
+                if expiry_date.tzinfo is not None:
+                    # UTC로 변환
+                    expiry_date = expiry_date.astimezone(pytz.UTC).replace(tzinfo=None)
+
 
             # Sale 인스턴스 생성
             sale = Sale(
@@ -37,6 +46,7 @@ class SaleService:
                 value=sale_data['value'],
                 location_lat=sale_data['location_lat'],
                 location_lon=sale_data['location_lon'],
+                expiry_date=expiry_date,
                 status=sale_data.get('status', 'Available'),  # 기본값 "Available"
             )
 
@@ -57,6 +67,7 @@ class SaleService:
                     "latitude": sale.location_lat,
                     "longitude": sale.location_lon,
                 },
+                "expiry_date" : sale.expiry_date,
                 "status": sale.status,
             }
         except IntegrityError as e:
