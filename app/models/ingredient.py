@@ -8,6 +8,7 @@ class Ingredient(Base):
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)
     expiry_date = Column(DateTime, nullable=False)
+    amount = Column(Integer , nullable= False)
 
     requests = relationship("IngredientRequest", back_populates="ingredient", cascade="all, delete-orphan")
     sales = relationship("Sale", back_populates="ingredient", cascade="all, delete-orphan")
