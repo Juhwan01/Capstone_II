@@ -3,31 +3,28 @@ from sqlalchemy.future import select
 from sqlalchemy.sql import func
 from geoalchemy2.elements import WKTElement
 from schemas.transaction import (TransDTO, ArriveDTO)
-from models.models import IngredientRequest, Transaction, User
+from models.models import Sale, Transaction, User
 from geoalchemy2 import Geometry
 from geoalchemy2.functions import ST_GeomFromEWKT
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class CRUDtransaction:
     def __init__(self, session: AsyncSession):
         self._session = session
 
     async def make_transaction(self, payload: TransDTO):
-        transaction_location = f"POINT({payload.transaction_loc[0]} {payload.transaction_loc[1]})"
         new_trans = Transaction(
-            seller_id=payload.seller_id,
             buyer_id=payload.buyer_id,
-            request_id=payload.request_id,
-            transaction_location=transaction_location,
+            sale_id=payload.sale_id,
             appointment_time=payload.appointment_time
         )
         result = await self._session.execute(
-            select(IngredientRequest).filter_by(id=payload.request_id)
+            select(Sale).filter_by(id=payload.sale_id)
         )
-        request = result.scalars().first()
-        if not request:
-            raise ValueError("Request not found.")
-        request.status = "Trading"
+        sale = result.scalars().first()
+        if not sale:
+            raise ValueError("sale not found.")
+        sale.status = "Trading"
         self._session.add(new_trans)
         await self._session.commit()
         return new_trans
@@ -39,16 +36,20 @@ class CRUDtransaction:
             return 1
         location_wkt = f'POINT({payload.location[0]} {payload.location[1]})'
         location = WKTElement(location_wkt, srid=4326)
+        result = await self._session.execute(select(Sale).filter_by(id=trans.sale_id))
+        sale = result.scalars().first()
+        sale_loc_wkt = f'POINT({sale.location_lon} {sale.location_lat})'
+        sale_loc = WKTElement(sale_loc_wkt, srid=4326)
         distance_result = await self._session.execute(
             select(func.ST_Distance(
                     func.ST_Transform(location, 3857),
-                    func.ST_Transform(trans.transaction_location, 3857)
+                    func.ST_Transform(sale_loc, 3857)
             ))
         )
         distance = distance_result.scalar()
         print(distance)
         if distance <= 10:
-            if trans.seller_id == payload.id:
+            if sale.seller_id == payload.id:
                 trans.seller_time = datetime.now()
                 await self._session.commit()
                 return True
@@ -69,16 +70,16 @@ class CRUDtransaction:
             ap_time = transaction.appointment_time
             by_time = transaction.buyer_time
             sl_time = transaction.seller_time
-            re_id = transaction.request_id
-            request_result = await self._session.execute(select(IngredientRequest).filter_by(id=re_id))
-            request = request_result.scalars().first()
-            if request:
-                request.status = "Completed"
+            sale_id = transaction.sale_id
+            sale_result = await self._session.execute(select(Sale).filter_by(id=sale_id))
+            sale = sale_result.scalars().first()
+            if sale:
+                sale.status = "Sold Out"
                 buyer_result = await self._session.execute(select(User).filter_by(id=transaction.buyer_id))
                 buyer = buyer_result.scalar_one()
                 if by_time and by_time <= ap_time:
                     buyer.trust_score += 0.5
-                seller_result = await self._session.execute(select(User).filter_by(id=transaction.seller_id))
+                seller_result = await self._session.execute(select(User).filter_by(id=sale.seller_id))
                 seller = seller_result.scalar_one()
                 if sl_time and sl_time <= ap_time:
                     seller.trust_score += 0.5
@@ -90,11 +91,34 @@ class CRUDtransaction:
         result = await self._session.execute(select(Transaction).filter_by(id=trans_id))
         transaction = result.scalars().first()
         if transaction:
-            re_id = transaction.request_id
-            request_result = await self._session.execute(select(IngredientRequest).filter_by(id=re_id))
-            request = request_result.scalars().first()
-            if request:
-                request.status = "Pending"
-                await self._session.commit()
-                return 0
-        return -1
+            sale_id = transaction.sale_id
+            sale_result = await self._session.execute(select(Sale).filter_by(id=sale_id))
+            sale = sale_result.scalars().first()
+            if sale:
+                sale.status = "Available"
+            else:
+                return -1
+            result_buyer = await self._session.execute(select(User).filter_by(id=transaction.buyer_id))
+            buyer = result_buyer.scalar_one_or_none()
+            result_seller = await self._session.execute(select(User).filter_by(id=sale_id))
+            seller = result_seller.scalar_one_or_none()
+            if transaction.appointment_time and (datetime.now() - transaction.appointment_time > timedelta(minutes=10)):
+                if  (not transaction.seller_time and not transaction.buyer_time) or (transaction.seller_time and transaction.buyer_time):
+                    print(not(transaction.seller_time and transaction.buyer_time))
+                    print("seller_time")
+                    print(transaction.seller_time)
+                    print("buyer_time")
+                    print(transaction.buyer_time)
+                    return {"is that true?"}
+                else:
+                    if transaction.seller_time:
+                        seller.trust_score -= 15
+                        print(seller.trust_score)
+                    else:
+                        buyer.trust_score -= 15
+                        print(buyer.trust_score)
+                    await self._session.commit()
+            else:
+                return{"아직 약속시간 안에 있습니다."}
+        else:
+            return -1

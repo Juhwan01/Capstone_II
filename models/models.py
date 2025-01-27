@@ -21,25 +21,6 @@ class User(Base):
     trust_score = Column(Float, default=0.0)
     requests = relationship("IngredientRequest", back_populates="user")
 
-class Transaction(Base):
-    __tablename__ = 'transaction'
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    seller_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    buyer_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    request_id = Column(Integer, ForeignKey('ingredient_requests.id'), nullable=False)
-    transaction_location = Column(Geometry(geometry_type='POINT', srid=4326))
-    appointment_time = Column(DateTime, nullable=False)
-    seller_time = Column(DateTime, nullable=True)
-    buyer_time = Column(DateTime, nullable=True)
-    seller_time = Column(DateTime, nullable=True)
-    buyer_time = Column(DateTime, nullable=True)
-    
-    #관계
-    seller = relationship('User', foreign_keys=[seller_id], backref='sold_transactions')
-    buyer = relationship('User', foreign_keys=[buyer_id], backref='bought_transactions')
-    request = relationship('IngredientRequest', backref='transactions')
-
 class IngredientRequest(Base):
     __tablename__ = 'ingredient_requests'
 
@@ -78,3 +59,15 @@ class Sale(Base):
     
     ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
 
+class Transaction(Base):
+    __tablename__ = 'transaction'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    buyer_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    sale_id = Column(Integer, ForeignKey('sales.id'), nullable=False)
+    appointment_time = Column(DateTime, nullable=False)
+    seller_time = Column(DateTime, nullable=True)
+    buyer_time = Column(DateTime, nullable=True)
+    
+    buyer = relationship('User', foreign_keys=[buyer_id], backref='bought_transactions')
+    request = relationship('Sale', backref='transactions')
