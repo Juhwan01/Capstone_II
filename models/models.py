@@ -27,6 +27,8 @@ class User(Base):
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     recipes = relationship("Recipe", back_populates="creator")
     q_values = relationship("QValue", back_populates="user")
+    requests = relationship("IngredientRequest", back_populates="user", cascade="all, delete-orphan")
+
 
 class Recipe(Base):
     __tablename__ = "recipes"
@@ -73,3 +75,31 @@ class QValue(Base):
     # Relationships
     user = relationship("User", back_populates="q_values")
     recipe = relationship("Recipe", back_populates="q_values")
+
+class IngredientRequest(Base):
+    __tablename__ = 'ingredient_requests'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # 고유 ID
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False)  # 사용자 ID
+    ingredient_id = Column(Integer, ForeignKey('ingredients.id', ondelete="CASCADE"), nullable=False)  # 식재료 ID
+    request_type = Column(String(50), nullable=False)  # 요청 유형 ('Request', 'Offer')
+    status = Column(String(50), default='Pending')  # 요청 상태 ('Pending', 'Completed', 'Rejected')
+    created_at = Column(DateTime, default=datetime.utcnow)  # 요청 생성 시간
+
+    # 관계 정의
+    user = relationship("User", back_populates="requests")
+    ingredient = relationship("Ingredient", back_populates="requests")
+
+class Ingredient(Base):
+    __tablename__ = 'ingredients'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    expiry_date = Column(DateTime, nullable=False)
+    value = Column(Float, nullable=False)
+    location_lat = Column(Float, nullable=False)
+    location_lon = Column(Float, nullable=False)
+    nutrition = Column(JSON, nullable=True)
+
+    requests = relationship("IngredientRequest", back_populates="ingredient", cascade="all, delete-orphan")
+
