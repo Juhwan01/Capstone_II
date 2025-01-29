@@ -2,7 +2,7 @@ from typing import List, Dict
 import random
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models.models import Recipe, UserProfile, QValue
+from models import Recipe, UserProfile, QValue
 from schemas.recipes import Recipe as RecipeSchema
 from schemas.users import UserProfile as UserProfileSchema
 from schemas.users import RecommendationResponse
