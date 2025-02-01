@@ -21,3 +21,4 @@ wheel==0.44.0
 wsproto==1.2.0
 python-jose==3.3.0
 pydantic-settings==2.7.1
+passlib[bcrypt]==1.7.4
