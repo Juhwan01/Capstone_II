@@ -2,7 +2,7 @@ import requests
 from sqlalchemy import select
 from api.dependencies import get_async_db
 from models.models import Recipe
-from app.db.session import async_session
+from db.session import AsyncSessionLocal
 
 keyId = "639e8e893d6445718216"
 serviceId = "COOKRCP01"
@@ -74,7 +74,7 @@ def init_api_data(recipe_data):
 async def init():
     recipe_data = fetch_recipe_data(keyId, serviceId, startIdx, endIdx, dataType="json")
     api_data = init_api_data(recipe_data=recipe_data)
-    async with async_session() as session:
+    async with AsyncSessionLocal() as session:
         for api_dict in api_data:
             recipe_name = api_dict['name']
             stmt = select(Recipe).filter(Recipe.name == recipe_name)
