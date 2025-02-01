@@ -19,3 +19,4 @@ websockets==14.2
 wheel==0.44.0
 wsproto==1.2.0
 python-jose==3.3.0
+pydantic-settings==2.7.1
