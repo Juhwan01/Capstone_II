@@ -10,6 +10,12 @@ class UserRole(str, Enum):
     EXPERT = "집밥달인"
     NEWBIE = "새댁/새싹"
 
+class UserRole(str, Enum):
+    CHEF = "셰프"
+    MASTER = "요리마스터"
+    EXPERT = "집밥달인"
+    NEWBIE = "새댁/새싹"
+
 class User(Base):
     __tablename__ = "users"
     
@@ -103,3 +109,49 @@ class Ingredient(Base):
 
     requests = relationship("IngredientRequest", back_populates="ingredient", cascade="all, delete-orphan")
 
+    
+
+class GroupPurchaseStatus(str, enum.Enum):
+    OPEN = "open"
+    CLOSED = "closed"
+    COMPLETED = "completed"
+
+class GroupPurchase(Base):
+    __tablename__ = "group_purchases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    price = Column(Float, nullable=False)
+    max_participants = Column(Integer, nullable=False)
+    current_participants = Column(Integer, default=0)
+    status = Column(
+        String,
+        nullable=False,
+        default='open'
+    )
+    updated_at = Column(DateTime(timezone=False), default=datetime.utcnow)
+    end_date = Column(DateTime(timezone=False), nullable=False)
+    closed_at = Column(DateTime(timezone=False), nullable=True)
+    created_at = Column(DateTime(timezone=False), default=datetime.utcnow)
+
+    # Relationships
+    creator = relationship("User", back_populates="group_purchases")
+    participants = relationship("GroupPurchaseParticipant", back_populates="group_purchase")
+
+class GroupPurchaseParticipant(Base):
+    __tablename__ = "group_purchase_participants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, ForeignKey("users.username"), nullable=False)  # user_id 대신 username으로 변경
+    group_buy_id = Column(Integer, ForeignKey("group_purchases.id"), nullable=False)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    group_purchase = relationship("GroupPurchase", back_populates="participants")
+    user = relationship("User", back_populates="group_purchase_participations", foreign_keys=[username])  # foreign_key 변경
+
+# 기존 User 테이블에 관계 추가
+User.group_purchases = relationship("GroupPurchase", back_populates="creator", lazy="dynamic")
+User.group_purchase_participations = relationship("GroupPurchaseParticipant", back_populates="user", lazy="dynamic")
