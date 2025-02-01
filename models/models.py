@@ -109,13 +109,13 @@ class GroupPurchaseParticipant(Base):
     __tablename__ = "group_purchase_participants"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # 공동구매에 참여한 사용자 ID
-    group_buy_id = Column(Integer, ForeignKey("group_purchases.id"), nullable=False)  # 참여한 공동구매 ID
-    joined_at = Column(DateTime, default=datetime.utcnow)  # 참여 날짜와 시간
+    username = Column(String, ForeignKey("users.username"), nullable=False)  # user_id 대신 username으로 변경
+    group_buy_id = Column(Integer, ForeignKey("group_purchases.id"), nullable=False)
+    joined_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     group_purchase = relationship("GroupPurchase", back_populates="participants")
-    user = relationship("User", back_populates="group_purchase_participations")
+    user = relationship("User", back_populates="group_purchase_participations", foreign_keys=[username])  # foreign_key 변경
 
 # 기존 User 테이블에 관계 추가
 User.group_purchases = relationship("GroupPurchase", back_populates="creator", lazy="dynamic")
