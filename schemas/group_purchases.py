@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, validator
@@ -56,3 +56,19 @@ class GroupPurchase(GroupPurchaseBase):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
+
+class ParticipantInfo(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    email: str
+    joined_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class GroupPurchaseDetail(GroupPurchase):
+    participants_info: List[ParticipantInfo] = []
+
+    class Config:
+        from_attributes = True
