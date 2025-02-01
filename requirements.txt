@@ -3,6 +3,7 @@ anyio==4.8.0
 asyncpg==0.30.0
 click==8.1.8
 fastapi==0.115.6
+geoalchemy2==0.14.5
 greenlet==3.1.1
 h11==0.14.0
 idna==3.10
