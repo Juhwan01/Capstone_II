@@ -6,8 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.session import AsyncSessionLocal
 from core.config import settings
-from crud import crud_auth
-from schemas.auth import TokenData
 from models.models import UserRole, User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")

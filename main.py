@@ -1,13 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api import router
-from db.base import Base
-from db.session import engine
+from services.recipes import init
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init()
+    yield
+    
 
 app = FastAPI(
     title="Recipe Recommendation System",
     description="Recipe recommendation system with user authentication",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS 설정
