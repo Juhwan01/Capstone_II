@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
     # 데이터베이스 설정
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str

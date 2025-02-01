@@ -1,5 +1,6 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean, DateTime, Enum as SQLAlchemyEnum, func
+from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean, DateTime, Numeric, Enum as SQLAlchemyEnum, func, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from db.base import Base
@@ -100,3 +101,19 @@ class Message(Base):
 
     chat = relationship("Chat", back_populates="messages")
 
+class Recipe(Base):
+    __tablename__ = 'recipes'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False)
+    category = Column(String(255))
+    calories = Column(Integer)
+    carbs = Column(Numeric(10, 2))
+    protein = Column(Numeric(10, 2))
+    fat = Column(Numeric(10, 2))
+    sodium = Column(Numeric(10, 2))
+    image_small = Column(String(255))
+    image_large = Column(String(255))
+    ingredients = Column(Text)
+    instructions = Column(JSONB)
+    cooking_img = Column(JSONB)

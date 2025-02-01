@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = "postgresql+asyncpg://test:1234@localhost:5432/test"
+DATABASE_URL = "postgresql+asyncpg://postgres:3321@localhost:5432/postgres"
 
 # 비동기 엔진 생성
 engine = create_async_engine(DATABASE_URL, echo=True)
