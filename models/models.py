@@ -43,19 +43,13 @@ class UserProfile(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
     owned_ingredients = Column(JSON, default={})
-    
-    # 영양소 제한 설정 추가
-    max_calories = Column(Integer, nullable=True)
-    max_carbs = Column(Numeric(10, 2), nullable=True)
-    max_protein = Column(Numeric(10, 2), nullable=True)
-    max_fat = Column(Numeric(10, 2), nullable=True)
-    max_sodium = Column(Numeric(10, 2), nullable=True)
-    
+    nutrition_limits = Column(JSON, default={})  # 추가된 부분
     recipe_history = Column(JSON, default=[])
     ratings = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Relationships
     user = relationship("User", back_populates="profile")
 
 class QValue(Base):
@@ -150,7 +144,7 @@ class Recipe(Base):
     __tablename__ = 'recipes'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"),nullable=True)
+    creator_id = Column(Integer, ForeignKey("users.id"),nullable=True)
     name = Column(String(255), nullable=False)
     category = Column(String(255))
     calories = Column(Integer)
