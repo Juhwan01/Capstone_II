@@ -150,6 +150,7 @@ class Recipe(Base):
     __tablename__ = 'recipes'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"),nullable=True)
     name = Column(String(255), nullable=False)
     category = Column(String(255))
     calories = Column(Integer)
