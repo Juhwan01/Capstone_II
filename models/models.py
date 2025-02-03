@@ -2,6 +2,7 @@ from enum import Enum
 from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean, DateTime, Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
 from datetime import datetime
+import enum
 from db.base import Base
 
 class UserRole(str, Enum):
@@ -155,3 +156,11 @@ class GroupPurchaseParticipant(Base):
 # 기존 User 테이블에 관계 추가
 User.group_purchases = relationship("GroupPurchase", back_populates="creator", lazy="dynamic")
 User.group_purchase_participations = relationship("GroupPurchaseParticipant", back_populates="user", lazy="dynamic")
+
+class TempReceipt(Base):
+    __tablename__ = 'temp_receipts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    value = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

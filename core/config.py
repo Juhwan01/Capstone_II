@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     POSTGRES_SERVER: str = "svc.sel5.cloudtype.app:31872"
     POSTGRES_DB: str = "recipe_db"
     
+    # OCR 및 OpenAI 설정 추가
+    CLOVA_OCR_API_URL: str = ""
+    CLOVA_OCR_SECRET_KEY: str = ""
+    OPENAI_API_KEY: str = ""
+    
     @property
     def DATABASE_URL(self) -> str:
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}/{self.POSTGRES_DB}"
