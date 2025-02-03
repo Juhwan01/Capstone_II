@@ -11,6 +11,7 @@ class RecipeRecommender:
     def calculate_ingredient_match_score(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema
     ) -> float:
+        """재료 매칭 점수 계산 (기존 로직 유지)"""
         available_ingredients = set(user_profile.owned_ingredients.keys())
         required_ingredients = set(recipe.ingredients.keys())
         
@@ -22,35 +23,67 @@ class RecipeRecommender:
     def can_cook(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema
     ) -> bool:
+        """요리 가능 여부 확인 (기존 로직 유지)"""
         return all(
             user_profile.owned_ingredients.get(ing, 0) >= amt 
             for ing, amt in recipe.ingredients.items()
         )
 
+    def calculate_nutrition_limits_score(
+        self, recipe: RecipeSchema, user_profile: UserProfileSchema
+    ) -> float:
+        """영양소 제한 기반 점수 계산"""
+        scores = []
+        
+        # 각 영양소별 제한 체크
+        if user_profile.max_calories and recipe.calories:
+            if recipe.calories > user_profile.max_calories:
+                return 0.0  # 제한 초과시 즉시 0점 반환
+            scores.append(1 - (recipe.calories / user_profile.max_calories))
+        
+        if user_profile.max_carbs and recipe.carbs:
+            if float(recipe.carbs) > float(user_profile.max_carbs):
+                return 0.0
+            scores.append(1 - (float(recipe.carbs) / float(user_profile.max_carbs)))
+        
+        if user_profile.max_protein and recipe.protein:
+            if float(recipe.protein) > float(user_profile.max_protein):
+                return 0.0
+            scores.append(1 - (float(recipe.protein) / float(user_profile.max_protein)))
+        
+        if user_profile.max_fat and recipe.fat:
+            if float(recipe.fat) > float(user_profile.max_fat):
+                return 0.0
+            scores.append(1 - (float(recipe.fat) / float(user_profile.max_fat)))
+        
+        if user_profile.max_sodium and recipe.sodium:
+            if float(recipe.sodium) > float(user_profile.max_sodium):
+                return 0.0
+            scores.append(1 - (float(recipe.sodium) / float(user_profile.max_sodium)))
+        
+        return sum(scores) / len(scores) if scores else 1.0
+
     def calculate_recipe_score(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema, q_value: float
     ) -> float:
-        if not self.can_cook(recipe, user_profile):
-            return 0.1
+        """전체 레시피 점수 계산"""
+        # 영양소 제한 체크
+        nutrition_limits_score = self.calculate_nutrition_limits_score(recipe, user_profile)
+        if nutrition_limits_score == 0.0:
+            return 0.0  # 영양소 제한 초과시 추천하지 않음
             
-        ingredient_score = self.calculate_ingredient_match_score(
-            recipe, user_profile
-        )
-        difficulty_match = 1 - abs(recipe.difficulty - user_profile.cooking_skill) / 4
-        time_match = 1 - abs(
-            recipe.cooking_time - user_profile.preferred_cooking_time
-        ) / 60
+        ingredient_score = self.calculate_ingredient_match_score(recipe, user_profile)
         
         return (
-            ingredient_score * 0.4 +
-            difficulty_match * 0.2 +
-            time_match * 0.1 +
-            q_value * 0.3
+            ingredient_score * 0.4 +           # 재료 매칭
+            nutrition_limits_score * 0.3 +     # 영양소 제한 준수
+            q_value * 0.3                      # 학습된 선호도
         )
 
     async def get_recommendations(
         self, db: AsyncSession, user_id: int
     ) -> List[RecommendationResponse]:
+        """추천 레시피 조회 (기존 로직 유지)"""
         # Get user profile
         result = await db.execute(
             select(UserProfile).where(UserProfile.user_id == user_id)
@@ -74,7 +107,7 @@ class RecipeRecommender:
             (
                 recipe,
                 self.calculate_recipe_score(
-                    RecipeSchema.model_validate(recipe),  # from_orm 대신 model_validate 사용
+                    RecipeSchema.model_validate(recipe),
                     UserProfileSchema.model_validate(user_profile),
                     q_values.get(recipe.id, 0)
                 )
@@ -92,7 +125,6 @@ class RecipeRecommender:
             exploration_recipe = random.choice(remaining_recipes)
             recommendations.append((exploration_recipe, 0))
 
-        # Create response
         return [
             RecommendationResponse(
                 recipe=RecipeSchema.model_validate(recipe),
@@ -102,7 +134,6 @@ class RecipeRecommender:
             for i, (recipe, score) in enumerate(recommendations)
         ]
 
-    # 기존 recommender.py의 RecipeRecommender 클래스에 추가
     async def update_q_value(
         self,
         db: AsyncSession,
@@ -111,7 +142,7 @@ class RecipeRecommender:
         reward: float,
         learning_rate: float = 0.1
     ) -> None:
-        """Update Q-value based on user feedback"""
+        """Q-value 업데이트 (기존 로직 유지)"""
         result = await db.execute(
             select(QValue).where(
                 QValue.user_id == user_id,
@@ -121,10 +152,8 @@ class RecipeRecommender:
         q_value = result.scalar_one_or_none()
         
         if q_value:
-            # Update existing Q-value
             q_value.value = (1 - learning_rate) * q_value.value + learning_rate * reward
         else:
-            # Create new Q-value
             q_value = QValue(
                 user_id=user_id,
                 recipe_id=recipe_id,

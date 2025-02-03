@@ -5,6 +5,7 @@ from core.security import get_password_hash, verify_password
 from models.models import User
 from schemas.auth import UserCreate
 from models.models import UserRole
+from fastapi import HTTPException
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
     result = await db.execute(
@@ -63,3 +64,29 @@ async def update_user_role(
     await db.commit()
     await db.refresh(user)
     return user
+
+async def get_user_by_nickname(db: AsyncSession, nickname: str) -> Optional[User]:
+    result = await db.execute(
+        select(User).where(User.nickname == nickname)
+    )
+    return result.scalar_one_or_none()
+
+async def create_user(db: AsyncSession, user: UserCreate) -> User:
+    # Check if nickname is already taken
+    if await get_user_by_nickname(db, user.nickname):
+        raise HTTPException(
+            status_code=400,
+            detail="Nickname already registered"
+        )
+        
+    hashed_password = get_password_hash(user.password)
+    db_user = User(
+        email=user.email,
+        username=user.username,
+        nickname=user.nickname,
+        hashed_password=hashed_password
+    )
+    db.add(db_user)
+    await db.commit()
+    await db.refresh(db_user)
+    return db_user

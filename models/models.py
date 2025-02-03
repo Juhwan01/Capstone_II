@@ -18,6 +18,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     username = Column(String, unique=True, index=True, nullable=False)
+    nickname = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     role = Column(SQLAlchemyEnum(UserRole), default=UserRole.NEWBIE)
@@ -42,14 +43,19 @@ class UserProfile(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
     owned_ingredients = Column(JSON, default={})
-    cooking_skill = Column(Integer, nullable=False)
-    preferred_cooking_time = Column(Integer)
+    
+    # 영양소 제한 설정 추가
+    max_calories = Column(Integer, nullable=True)
+    max_carbs = Column(Numeric(10, 2), nullable=True)
+    max_protein = Column(Numeric(10, 2), nullable=True)
+    max_fat = Column(Numeric(10, 2), nullable=True)
+    max_sodium = Column(Numeric(10, 2), nullable=True)
+    
     recipe_history = Column(JSON, default=[])
     ratings = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
     user = relationship("User", back_populates="profile")
 
 class QValue(Base):

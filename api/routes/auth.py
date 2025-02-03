@@ -19,21 +19,37 @@ async def register(
     db: AsyncSession = Depends(get_async_db),
     user_in: UserCreate
 ):
+    """Create new user with profile"""
     user = await crud_auth.get_user_by_email(db, email=user_in.email)
     if user:
         raise HTTPException(
             status_code=400,
             detail="Email already registered"
         )
+    
+    user = await crud_auth.get_user_by_username(db, username=user_in.username)
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="Username already taken"
+        )
+        
+    user = await crud_auth.get_user_by_nickname(db, nickname=user_in.nickname)
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="Nickname already taken"
+        )
+    
     user = await crud_auth.create_user(db, user_in)
     
-    # Create user profile
     profile_in = UserProfileCreate()
     await crud_user.create_with_owner(
         db=db,
         obj_in=profile_in,
         owner_id=user.id
     )
+    
     return user
 
 @router.post("/login", response_model=Token)
