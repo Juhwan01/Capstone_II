@@ -7,14 +7,20 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # 보안 설정
-    SECRET_KEY: str
+    SECRET_KEY: str = "your-super-secret-key-here"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
     # 데이터베이스 설정
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_SERVER: str
-    POSTGRES_DB: str
+    POSTGRES_USER: str = "root"
+    POSTGRES_PASSWORD: str = "3321"
+    POSTGRES_SERVER: str = "svc.sel5.cloudtype.app:31872"
+    POSTGRES_DB: str = "recipe_db"
+    
+    # OCR 및 OpenAI 설정 추가
+    CLOVA_OCR_API_URL: str = ""
+    CLOVA_OCR_SECRET_KEY: str = ""
+    OPENAI_API_KEY: str = ""
     
     @property
     def DATABASE_URL(self) -> str:
