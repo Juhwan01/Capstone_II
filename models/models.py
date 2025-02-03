@@ -36,6 +36,8 @@ class User(Base):
     sales = relationship("Sale", back_populates="seller", cascade="all, delete-orphan")
     group_purchases = relationship("GroupPurchase", back_populates="creator", lazy="dynamic")
     group_purchase_participations = relationship("GroupPurchaseParticipant", back_populates="user", lazy="dynamic")  
+    group_chat_participations = relationship("GroupChatParticipant", back_populates="user")
+    messages = relationship("GroupChatMessage", back_populates="sender")
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
@@ -190,6 +192,8 @@ class GroupPurchase(Base):
     # Relationships
     creator = relationship("User", back_populates="group_purchases")
     participants = relationship("GroupPurchaseParticipant", back_populates="group_purchase")
+    # 기존 GroupPurchase 모델에 채팅방 관계 추가
+    chatroom = relationship("GroupChatroom", back_populates="group_purchase", uselist=False)
 
 class GroupPurchaseParticipant(Base):
     __tablename__ = "group_purchase_participants"
@@ -203,8 +207,44 @@ class GroupPurchaseParticipant(Base):
     group_purchase = relationship("GroupPurchase", back_populates="participants")
     user = relationship("User", back_populates="group_purchase_participations", foreign_keys=[username])  # foreign_key 변경
 
+class GroupChatroom(Base):
+    __tablename__ = "group_chatrooms"
 
+    id = Column(Integer, primary_key=True, index=True)
+    group_purchase_id = Column(Integer, ForeignKey("group_purchases.id"), nullable=False, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
+    # Relationships
+    group_purchase = relationship("GroupPurchase", back_populates="chatroom")
+    messages = relationship("GroupChatMessage", back_populates="chatroom")
+    participants = relationship("GroupChatParticipant", back_populates="chatroom")
+
+class GroupChatParticipant(Base):
+    __tablename__ = "group_chat_participants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    chatroom_id = Column(Integer, ForeignKey("group_chatrooms.id"), nullable=False)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="group_chat_participations")
+    chatroom = relationship("GroupChatroom", back_populates="participants")
+
+class GroupChatMessage(Base):
+    __tablename__ = "group_chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    chatroom_id = Column(Integer, ForeignKey("group_chatrooms.id"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    message = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    chatroom = relationship("GroupChatroom", back_populates="messages")
+    sender = relationship("User", back_populates="messages")
+
+    
 class TempReceipt(Base):
     __tablename__ = 'temp_receipts'
 
