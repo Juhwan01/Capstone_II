@@ -7,6 +7,7 @@ from api.routes import (
     ingredients,
     transaction,
     chat,
+    sale,
     group_purchases,
     receipts
 )
@@ -21,3 +22,4 @@ router.include_router(transaction.router)
 router.include_router(chat.router)
 router.include_router(group_purchases.router)
 router.include_router(receipts.router)
+router.include_router(sale.router)
