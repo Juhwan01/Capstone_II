@@ -85,3 +85,21 @@ async def delete_group_purchase(
     )
     return {"message": "Group purchase successfully deleted"}
 
+@router.patch("/{group_purchase_id}", response_model=GroupPurchase)
+async def update_group_purchase(
+    *,
+    group_purchase_id: int,
+    group_purchase_in: GroupPurchaseUpdate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """공동구매 수정"""
+    crud_group_purchase = CRUDGroupPurchase(db)
+    group_purchase_obj = await crud_group_purchase.update_group_purchase(
+        db=db,
+        group_purchase_id=group_purchase_id,
+        current_user_id=current_user.id,
+        obj_in=group_purchase_in
+    )
+    return group_purchase_obj
+

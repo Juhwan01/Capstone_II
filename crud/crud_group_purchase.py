@@ -1,12 +1,13 @@
 from typing import List, Optional, Dict
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, delete
 from sqlalchemy.exc import IntegrityError
 from crud.base import CRUDBase
 from models.models import GroupPurchase, GroupPurchaseParticipant, User
 from schemas.group_purchases import GroupPurchaseCreate, GroupPurchaseUpdate, GroupPurchaseStatus
 from datetime import datetime
+import pytz
 
 class CRUDGroupPurchase(CRUDBase[GroupPurchase, GroupPurchaseCreate, GroupPurchaseUpdate]):
     async def create_with_owner(
@@ -137,16 +138,72 @@ class CRUDGroupPurchase(CRUDBase[GroupPurchase, GroupPurchaseCreate, GroupPurcha
                 detail="Not authorized to delete this group purchase"
             )
         
-        # 이미 참여자가 있는 경우 삭제 불가
+        # 참여자가 있는 경우 관련 데이터도 함께 삭제
         if group_purchase.current_participants > 0:
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot delete group purchase with existing participants"
+            # 참여자 정보 삭제
+            await db.execute(
+                delete(GroupPurchaseParticipant).where(
+                    GroupPurchaseParticipant.group_buy_id == group_purchase_id
+                )
             )
         
+        # 공동구매 삭제
         await db.delete(group_purchase)
         await db.commit()
         
         return True
+
+    async def update_group_purchase(
+        self, 
+        db: AsyncSession, 
+        *, 
+        group_purchase_id: int, 
+        current_user_id: int,
+        obj_in: GroupPurchaseUpdate
+    ) -> GroupPurchase:
+        """공동구매 수정"""
+        result = await db.execute(
+            select(GroupPurchase).where(GroupPurchase.id == group_purchase_id)
+        )
+        group_purchase = result.scalar_one_or_none()
+        
+        if not group_purchase:
+            raise HTTPException(status_code=404, detail="Group purchase not found")
+        
+        # 디버깅을 위한 로그 추가
+        print(f"Current user ID: {current_user_id}")
+        print(f"Group purchase creator ID: {group_purchase.created_by}")
+        
+        # 생성자만 수정 가능
+        if group_purchase.created_by != current_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Not authorized to update this group purchase. Only creator (ID: {group_purchase.created_by}) can modify this."
+            )
+        
+        update_data = obj_in.model_dump(exclude_unset=True)
+        
+        # 최대 참여자 수 검증
+        if 'max_participants' in update_data:
+            if update_data['max_participants'] < group_purchase.current_participants:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot set max participants less than current participants ({group_purchase.current_participants})"
+                )
+        
+        # end_date가 있는 경우 타임존 처리
+        if 'end_date' in update_data:
+            if update_data['end_date'].tzinfo is not None:
+                update_data['end_date'] = update_data['end_date'].replace(tzinfo=None)
+        
+        # 데이터 업데이트
+        for field, value in update_data.items():
+            setattr(group_purchase, field, value)
+        
+        group_purchase.updated_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(group_purchase)
+        
+        return group_purchase
 
 group_purchase = CRUDGroupPurchase(GroupPurchase)

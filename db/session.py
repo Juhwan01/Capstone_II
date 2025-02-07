@@ -5,7 +5,7 @@ from core.config import settings
 engine = create_async_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
-    echo=True,
+    echo=False,
     future=True,
     connect_args={"ssl": False}  # SSL 비활성화
 )
