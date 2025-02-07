@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.dependencies import get_async_db, get_current_active_user
-from crud.crud_group_purchase import group_purchase
+from crud.crud_group_purchase import CRUDGroupPurchase, group_purchase
 from schemas.group_purchases import (
     GroupPurchase, 
     GroupPurchaseCreate, 
@@ -44,16 +44,16 @@ async def list_group_purchases(
 
 @router.post("/{group_purchase_id}/join")
 async def join_group_purchase(
-    *,
-    db: AsyncSession = Depends(get_async_db),
     group_purchase_id: int,
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """공동구매 참여"""
-    group_purchase_obj = await group_purchase.join_group_purchase(
+    """공동구매에 참여"""
+    crud_group_purchase = CRUDGroupPurchase(db)
+    group_purchase_obj = await crud_group_purchase.join_group_purchase(
         db=db,
         group_purchase_id=group_purchase_id,
-        user_id=current_user.id
+        current_user=current_user
     )
     return group_purchase_obj
 
@@ -69,4 +69,19 @@ async def get_group_purchase(
     if not group_purchase_obj:
         raise HTTPException(status_code=404, detail="Group purchase not found")
     return group_purchase_obj
+
+@router.delete("/{group_purchase_id}")
+async def delete_group_purchase(
+    group_purchase_id: int,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """공동구매 삭제"""
+    crud_group_purchase = CRUDGroupPurchase(db)
+    await crud_group_purchase.delete_group_purchase(
+        db=db,
+        group_purchase_id=group_purchase_id,
+        current_user_id=current_user.id
+    )
+    return {"message": "Group purchase successfully deleted"}
 

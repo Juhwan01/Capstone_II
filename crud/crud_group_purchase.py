@@ -118,4 +118,35 @@ class CRUDGroupPurchase(CRUDBase[GroupPurchase, GroupPurchaseCreate, GroupPurcha
             "participants_info": participants
         }
 
+    async def delete_group_purchase(
+        self, db: AsyncSession, *, group_purchase_id: int, current_user_id: int
+    ) -> bool:
+        """공동구매 삭제"""
+        result = await db.execute(
+            select(GroupPurchase).where(GroupPurchase.id == group_purchase_id)
+        )
+        group_purchase = result.scalar_one_or_none()
+        
+        if not group_purchase:
+            raise HTTPException(status_code=404, detail="Group purchase not found")
+        
+        # 생성자만 삭제 가능
+        if group_purchase.created_by != current_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to delete this group purchase"
+            )
+        
+        # 이미 참여자가 있는 경우 삭제 불가
+        if group_purchase.current_participants > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot delete group purchase with existing participants"
+            )
+        
+        await db.delete(group_purchase)
+        await db.commit()
+        
+        return True
+
 group_purchase = CRUDGroupPurchase(GroupPurchase)
