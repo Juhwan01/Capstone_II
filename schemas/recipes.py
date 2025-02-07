@@ -2,7 +2,7 @@ from typing import Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any,List
 from pydantic import BaseModel, Field
 from decimal import Decimal
 
@@ -17,8 +17,8 @@ class RecipeBase(BaseModel):
     image_small: Optional[str] = Field(None, max_length=255)
     image_large: Optional[str] = Field(None, max_length=255)
     ingredients: str
-    instructions: Dict[str, Any]  # JSONB field
-    cooking_img: Dict[str, Any]  # JSONB field
+    instructions: Optional[List[str]] = None  # None 또는 리스트 허용
+    cooking_img: Optional[List[str]] = None   # None 또는 리스트 허용
 
 class RecipeCreate(RecipeBase):
     pass

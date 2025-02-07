@@ -14,7 +14,7 @@ app = FastAPI(
     title="Recipe Recommendation System",
     description="Recipe recommendation system with user authentication",
     version="1.0.0",
-    lifespan=lifespan
+    #lifespan=lifespan
 )
 
 # CORS 설정
