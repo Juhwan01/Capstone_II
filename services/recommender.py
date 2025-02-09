@@ -35,31 +35,37 @@ class RecipeRecommender:
         """영양소 제한 기반 점수 계산"""
         scores = []
         
+        # nutrition_limits가 없으면 1.0 반환
+        if not user_profile.nutrition_limits:
+            return 1.0
+        
+        limits = user_profile.nutrition_limits
+        
         # 각 영양소별 제한 체크
-        if user_profile.max_calories and recipe.calories:
-            if recipe.calories > user_profile.max_calories:
+        if recipe.calories and limits.max_calories:
+            if recipe.calories > limits.max_calories:
                 return 0.0  # 제한 초과시 즉시 0점 반환
-            scores.append(1 - (recipe.calories / user_profile.max_calories))
+            scores.append(1 - (recipe.calories / limits.max_calories))
         
-        if user_profile.max_carbs and recipe.carbs:
-            if float(recipe.carbs) > float(user_profile.max_carbs):
+        if recipe.carbs and limits.max_carbs:
+            if float(recipe.carbs) > float(limits.max_carbs):
                 return 0.0
-            scores.append(1 - (float(recipe.carbs) / float(user_profile.max_carbs)))
+            scores.append(1 - (float(recipe.carbs) / float(limits.max_carbs)))
         
-        if user_profile.max_protein and recipe.protein:
-            if float(recipe.protein) > float(user_profile.max_protein):
+        if recipe.protein and limits.max_protein:
+            if float(recipe.protein) > float(limits.max_protein):
                 return 0.0
-            scores.append(1 - (float(recipe.protein) / float(user_profile.max_protein)))
+            scores.append(1 - (float(recipe.protein) / float(limits.max_protein)))
         
-        if user_profile.max_fat and recipe.fat:
-            if float(recipe.fat) > float(user_profile.max_fat):
+        if recipe.fat and limits.max_fat:
+            if float(recipe.fat) > float(limits.max_fat):
                 return 0.0
-            scores.append(1 - (float(recipe.fat) / float(user_profile.max_fat)))
+            scores.append(1 - (float(recipe.fat) / float(limits.max_fat)))
         
-        if user_profile.max_sodium and recipe.sodium:
-            if float(recipe.sodium) > float(user_profile.max_sodium):
+        if recipe.sodium and limits.max_sodium:
+            if float(recipe.sodium) > float(limits.max_sodium):
                 return 0.0
-            scores.append(1 - (float(recipe.sodium) / float(user_profile.max_sodium)))
+            scores.append(1 - (float(recipe.sodium) / float(limits.max_sodium)))
         
         return sum(scores) / len(scores) if scores else 1.0
 

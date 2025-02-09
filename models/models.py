@@ -154,7 +154,7 @@ class Recipe(Base):
     sodium = Column(Numeric(10, 2))
     image_small = Column(String(255))
     image_large = Column(String(255))
-    ingredients = Column(Text)
+    ingredients = Column(JSONB)
     instructions = Column(JSONB)
     cooking_img = Column(JSONB)
 
