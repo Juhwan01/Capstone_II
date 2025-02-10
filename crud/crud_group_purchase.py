@@ -206,4 +206,51 @@ class CRUDGroupPurchase(CRUDBase[GroupPurchase, GroupPurchaseCreate, GroupPurcha
         
         return group_purchase
 
+    async def leave_group_purchase(
+        self, db: AsyncSession, *, group_purchase_id: int, current_user: User
+    ) -> GroupPurchase:
+        # 공동구매 정보 조회
+        result = await db.execute(
+            select(GroupPurchase).where(GroupPurchase.id == group_purchase_id)
+        )
+        group_purchase = result.scalar_one_or_none()
+        
+        if not group_purchase:
+            raise HTTPException(status_code=404, detail="공동구매를 찾을 수 없습니다")
+        
+        # 현재 시간과 end_date 비교
+        current_time = datetime.utcnow()
+        if current_time > group_purchase.end_date:
+            raise HTTPException(status_code=400, detail="공동구매 마감 기한이 지나 취소할 수 없습니다")
+        
+        # 참여자 정보 확인
+        participant_result = await db.execute(
+            select(GroupPurchaseParticipant).where(
+                and_(
+                    GroupPurchaseParticipant.group_buy_id == group_purchase_id,
+                    GroupPurchaseParticipant.username == current_user.username
+                )
+            )
+        )
+        participant = participant_result.scalar_one_or_none()
+        
+        if not participant:
+            raise HTTPException(status_code=400, detail="해당 공동구매에 참여하지 않았습니다")
+        
+        # 참여자 삭제
+        await db.delete(participant)
+        
+        # 참여자 수 감소
+        group_purchase.current_participants -= 1
+        
+        # 상태가 completed였다면 다시 open으로 변경
+        if group_purchase.status == "completed":
+            group_purchase.status = "open"
+            group_purchase.closed_at = None
+        
+        await db.commit()
+        await db.refresh(group_purchase)
+        
+        return group_purchase
+
 group_purchase = CRUDGroupPurchase(GroupPurchase)

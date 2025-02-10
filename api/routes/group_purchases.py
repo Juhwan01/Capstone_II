@@ -103,3 +103,21 @@ async def update_group_purchase(
     )
     return group_purchase_obj
 
+@router.post("/{group_purchase_id}/leave")
+async def leave_group_purchase(
+    group_purchase_id: int,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """공동구매 참여 취소"""
+    crud_group_purchase = CRUDGroupPurchase(db)
+    group_purchase_obj = await crud_group_purchase.leave_group_purchase(
+        db=db,
+        group_purchase_id=group_purchase_id,
+        current_user=current_user
+    )
+    return {
+        "message": "공동구매 참여가 취소되었습니다",
+        "group_purchase": group_purchase_obj
+    }
+
