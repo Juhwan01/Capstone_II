@@ -11,23 +11,64 @@ class RecipeRecommender:
     def calculate_ingredient_match_score(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema
     ) -> float:
-        """재료 매칭 점수 계산 (기존 로직 유지)"""
-        available_ingredients = set(user_profile.owned_ingredients.keys())
-        required_ingredients = set(recipe.ingredients.keys())
-        
-        matching_count = len(available_ingredients.intersection(required_ingredients))
-        total_count = len(required_ingredients)
-        
-        return matching_count / total_count if total_count > 0 else 0
+        """재료 매칭 점수 계산"""
+        try:
+            recipe_ingredients = recipe.ingredients  # {"재료명": 수량} 형태
+            user_ingredients = user_profile.owned_ingredients
+
+            if not recipe_ingredients or not user_ingredients:
+                return 0.0
+
+            available_ingredients = set(user_ingredients.keys())
+            required_ingredients = set(recipe_ingredients.keys())
+            
+            # 재료 매칭 (보유 여부)
+            matching_ingredients = available_ingredients.intersection(required_ingredients)
+            total_ingredients = len(required_ingredients)
+            if total_ingredients == 0:
+                return 0.0
+
+            # 수량 기반 점수 계산
+            quantity_scores = []
+            for ingredient in matching_ingredients:
+                required_amount = float(recipe_ingredients[ingredient])
+                available_amount = float(user_ingredients[ingredient])
+                
+                if required_amount <= 0:
+                    continue
+                    
+                # 필요량 대비 보유량의 비율
+                ratio = min(available_amount / required_amount, 1.0)
+                quantity_scores.append(ratio)
+
+            # 최종 점수 계산
+            base_match_score = len(matching_ingredients) / total_ingredients
+            quantity_score = (
+                sum(quantity_scores) / len(quantity_scores)
+                if quantity_scores
+                else 0.0
+            )
+
+            # 재료 매칭(60%)과 수량 매칭(40%) 반영
+            return (base_match_score * 0.6) + (quantity_score * 0.4)
+
+        except Exception as e:
+            print(f"Ingredient matching error: {str(e)}")
+            return 0.0
 
     def can_cook(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema
     ) -> bool:
-        """요리 가능 여부 확인 (기존 로직 유지)"""
-        return all(
-            user_profile.owned_ingredients.get(ing, 0) >= amt 
-            for ing, amt in recipe.ingredients.items()
-        )
+        """요리 가능 여부 확인"""
+        try:
+            for ingredient, required_amount in recipe.ingredients.items():
+                available_amount = user_profile.owned_ingredients.get(ingredient, 0)
+                if float(available_amount) < float(required_amount):
+                    return False
+            return True
+        except Exception as e:
+            print(f"Can cook check error: {str(e)}")
+            return False
 
     def calculate_nutrition_limits_score(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema

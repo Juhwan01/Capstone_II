@@ -40,7 +40,7 @@ async def register(
             status_code=400,
             detail="Nickname already taken"
         )
-    
+    print("create_user 호출 전", user_in)
     user = await crud_auth.create_user(db, user_in)
     
     profile_in = UserProfileCreate()

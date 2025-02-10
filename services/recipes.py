@@ -1,7 +1,8 @@
+from fastapi import HTTPException
 import requests
 from sqlalchemy import select
 from api.dependencies import get_async_db
-from models.models import Recipe
+from models.models import Recipe,UserProfile
 from db.session import AsyncSessionLocal
 from openai import OpenAI
 from typing import Dict, List
@@ -9,12 +10,150 @@ import json
 import asyncio
 from datetime import datetime
 from core.config import settings
+from crud import crud_recipe, crud_user
+from services.recommender import RecipeRecommender
+from sqlalchemy.ext.asyncio import AsyncSession
 
 keyId = "639e8e893d6445718216"
 serviceId = "COOKRCP01"
 startIdx = 1
 endIdx = 10
 
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, Optional
+
+from crud.crud_recipe import recipe as crud_recipe
+from crud.crud_user_profile import user_profile as crud_user_profile
+from services.recommender import RecipeRecommender
+from models.models import Recipe, UserProfile
+
+class RecipeService:
+    def __init__(self):
+        self.recommender = RecipeRecommender()
+
+    async def select_recipe(
+        self, 
+        db: AsyncSession, 
+        user_id: int, 
+        recipe_id: int
+    ) -> Recipe:
+        """레시피 선택 처리"""
+        # 레시피 존재 확인
+        recipe = await crud_recipe.get_recipe(db, id=recipe_id)
+        if not recipe:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        # 사용자 프로필 가져오기
+        user_profile = await crud_user_profile.get_profile(db, user_id=user_id)
+        if not user_profile:
+            raise HTTPException(status_code=404, detail="User profile not found")
+
+        # 재료 체크
+        missing_ingredients = await self._check_ingredients(
+            recipe.ingredients, 
+            user_profile.owned_ingredients
+        )
+        if missing_ingredients:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "Required ingredients are missing",
+                    "missing_ingredients": missing_ingredients
+                }
+            )
+
+        try:
+            # 재료 차감
+            await crud_user_profile.update_ingredients(
+                db, 
+                user_profile, 
+                self._calculate_remaining_ingredients(
+                    user_profile.owned_ingredients,
+                    recipe.ingredients
+                )
+            )
+            
+            # 히스토리 업데이트
+            await crud_user_profile.update_recipe_history(
+                db,
+                user_profile,
+                recipe_id
+            )
+
+            return recipe
+
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    async def rate_recipe(
+        self, 
+        db: AsyncSession, 
+        user_id: int, 
+        recipe_id: int, 
+        rating: float
+    ) -> UserProfile:
+        """레시피 평가 처리"""
+        # 레시피 존재 확인
+        recipe = await crud_recipe.get_recipe(db, id=recipe_id)
+        if not recipe:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        # 사용자 프로필 가져오기
+        user_profile = await crud_user_profile.get_profile(db, user_id=user_id)
+        if not user_profile:
+            raise HTTPException(status_code=404, detail="User profile not found")
+
+        try:
+            # 평가 업데이트
+            updated_profile = await crud_user_profile.update_rating(
+                db,
+                user_profile,
+                recipe_id,
+                rating
+            )
+
+            # Q-value 업데이트
+            await self.recommender.update_q_value(
+                db,
+                user_id,
+                recipe_id,
+                rating / 5.0
+            )
+
+            return updated_profile
+
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    def _check_ingredients(
+        self, 
+        required_ingredients: Dict[str, float], 
+        owned_ingredients: Dict[str, float]
+    ) -> Dict[str, Dict]:
+        """재료 보유량 체크"""
+        missing = {}
+        for ingredient, required_amount in required_ingredients.items():
+            owned_amount = owned_ingredients.get(ingredient, 0)
+            if owned_amount < required_amount:
+                missing[ingredient] = {
+                    "required": required_amount,
+                    "owned": owned_amount,
+                    "missing": required_amount - owned_amount
+                }
+        return missing
+
+    def _calculate_remaining_ingredients(
+        self,
+        owned_ingredients: Dict[str, float],
+        recipe_ingredients: Dict[str, float]
+    ) -> Dict[str, float]:
+        """레시피 사용 후 남은 재료량 계산"""
+        remaining = owned_ingredients.copy()
+        for ingredient, amount in recipe_ingredients.items():
+            remaining[ingredient] = remaining[ingredient] - amount
+        return remaining
+    
 class IngredientParser:
     def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
