@@ -50,7 +50,7 @@ class RecipeService:
             raise HTTPException(status_code=404, detail="User profile not found")
 
         # 재료 체크
-        missing_ingredients = await self._check_ingredients(
+        missing_ingredients = self._check_ingredients(
             recipe.ingredients, 
             user_profile.owned_ingredients
         )
