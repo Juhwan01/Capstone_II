@@ -3,18 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from api import router
 from services.recipes import init
 from contextlib import asynccontextmanager
+from db.session import AsyncSessionLocal
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init()
     yield
-    
+
 
 app = FastAPI(
     title="Recipe Recommendation System",
     description="Recipe recommendation system with user authentication",
     version="1.0.0",
-    lifespan=lifespan
+    #lifespan=lifespan
 )
 
 # CORS 설정

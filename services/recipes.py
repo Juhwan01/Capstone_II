@@ -11,6 +11,29 @@ endIdx = 100
 manual_list = []
 manual_img_list = []
 
+import asyncpg
+
+async def init():
+    print("✅ init() 내부 실행 시작됨")  # 로그 추가
+
+    try:
+        print("🔹 DB 연결 시도 중...")  # 로그 추가
+        conn = await asyncpg.connect(
+            user="root",
+            password="3321",
+            database="recipe_db",
+            host="svc.sel5.cloudtype.app",
+            port=31872,
+            timeout=10  # 10초 내 응답 없으면 오류 발생
+        )
+        print("✅ DB 연결 성공!")  # 로그 추가
+        await conn.close()
+        print("✅ DB 연결 종료 완료!")  # 로그 추가
+
+    except Exception as e:
+        print(f"🚨 init() 내부 에러 발생: {e}")  # 오류 발생 시 로그 출력
+
+
 def fetch_recipe_data(keyId, serviceId, startIdx, endIdx, dataType="json"):
     base_url = "http://openapi.foodsafetykorea.go.kr/api"
     url = f"{base_url}/{keyId}/{serviceId}/{dataType}/{startIdx}/{endIdx}"
