@@ -25,7 +25,10 @@ class User(Base):
     trust_score = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+    address_name = Column(String, nullable=False)
+    zone_no = Column(String, nullable=False)
+    location_lat = Column(Float, nullable=False)
+    location_lon = Column(Float, nullable=False)
     # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     recipes = relationship("Recipe", back_populates="creator")
@@ -102,6 +105,8 @@ class Sale(Base):
     location_lon = Column(Float, nullable=False)  # 판매 위치 경도
     status = Column(String, nullable=False, default="Available")  # 판매 상태
     expiry_date = Column(DateTime, nullable=False)
+    contents = Column(String , nullable= False ) # 내용 추가
+    image_url = Column(String, nullable=True)  # ✅ 이미지 URL 필드 추가
 
     ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
     seller = relationship("User", back_populates="sales")  # 관계 설정
@@ -154,7 +159,7 @@ class Recipe(Base):
     sodium = Column(Numeric(10, 2))
     image_small = Column(String(255))
     image_large = Column(String(255))
-    ingredients = Column(Text)
+    ingredients = Column(JSONB)
     instructions = Column(JSONB)
     cooking_img = Column(JSONB)
 

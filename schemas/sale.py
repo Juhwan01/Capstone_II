@@ -11,7 +11,7 @@ class SaleCreate(BaseModel):
     location_lon: float
     expiry_date: datetime
     status: Optional[str] = Field(default="Available")
-
+    contents: Optional[str]
 class SaleResponse(BaseModel):
     id: int
     ingredient_id: int
@@ -21,6 +21,8 @@ class SaleResponse(BaseModel):
     location : dict
     expiry_date: datetime
     status: str
+    image_url: Optional[str]
+    contents: Optional[str]
 
     class Config:
         from_attributes = True #Pydantic 1.X인 경우에 orm_mode = True로 수정
