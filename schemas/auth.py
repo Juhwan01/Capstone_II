@@ -21,7 +21,11 @@ class UserBase(BaseModel):
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=50)
     nickname: str = Field(..., min_length=2, max_length=50)
-
+    address_name: str = Field(..., min_length=3, max_length=50)
+    zone_no: str = Field(..., min_length=3, max_length=50)
+    location_lat: float
+    location_lon: float
+    
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
 
@@ -38,6 +42,10 @@ class User(UserBase):
     trust_score: float
     created_at: datetime
     updated_at: datetime
+    address_name: str
+    zone_no: str
+    location_lat: float
+    location_lon: float
 
     class Config:
         from_attributes = True

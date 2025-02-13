@@ -1,1 +1,9 @@
 ﻿.env
+.vs
+crud/__pycache__
+db/__pycache__/base.cpython-311.pyc
+alembic/__pycache__
+alembic/versions/__pycache__
+*/__pycache__
+api/routes/__pycache__
+__pycache__

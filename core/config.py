@@ -12,10 +12,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # 데이터베이스 설정
-    POSTGRES_USER: str = "root"
+    POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "3321"
-    POSTGRES_SERVER: str = "svc.sel5.cloudtype.app:31872"
-    POSTGRES_DB: str = "recipe_db"
+    POSTGRES_SERVER: str = "localhost:5432"
+    POSTGRES_DB: str = "postgres"
     
     # OCR 및 OpenAI 설정 추가
     CLOVA_OCR_API_URL: str = ""
