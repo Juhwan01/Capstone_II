@@ -25,7 +25,10 @@ class User(Base):
     trust_score = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+    address_name = Column(String, nullable=False)
+    zone_no = Column(String, nullable=False)
+    location_lat = Column(Float, nullable=False)
+    location_lon = Column(Float, nullable=False)
     # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     recipes = relationship("Recipe", back_populates="creator")
@@ -87,6 +90,7 @@ class Ingredient(Base):
     category = Column(String, nullable=False)
     expiry_date = Column(DateTime, nullable=False)
     amount = Column(Integer , nullable= False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
 
     requests = relationship("IngredientRequest", back_populates="ingredient", cascade="all, delete-orphan")
     sales = relationship("Sale", back_populates="ingredient", cascade="all, delete-orphan")

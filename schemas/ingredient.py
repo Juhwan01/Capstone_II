@@ -5,13 +5,10 @@ class IngredientCreate(BaseModel):
     name: str
     category: str
     expiry_date: datetime
-    value: float
-    location_lat: float
-    location_lon: float
-    nutrition: dict
+    amount: int
 
 class IngredientResponse(IngredientCreate):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
