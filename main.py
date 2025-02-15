@@ -14,7 +14,7 @@ app = FastAPI(
     title="Recipe Recommendation System",
     description="Recipe recommendation system with user authentication",
     version="1.0.0",
-    lifespan=lifespan
+    #lifespan=lifespan
 )
 
 # CORS 설정
@@ -27,6 +27,10 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api/v1")
+
+@app.get("/test")
+async def test_route():
+    return {"message": "Test route works!"}
 
 if __name__ == "__main__":
     import uvicorn

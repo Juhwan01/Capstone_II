@@ -106,6 +106,8 @@ class Sale(Base):
     location_lon = Column(Float, nullable=False)  # 판매 위치 경도
     status = Column(String, nullable=False, default="Available")  # 판매 상태
     expiry_date = Column(DateTime, nullable=False)
+    contents = Column(String , nullable= False ) # 내용 추가
+    image_url = Column(String, nullable=True)  # ✅ 이미지 URL 필드 추가
 
     ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
     seller = relationship("User", back_populates="sales")  # 관계 설정

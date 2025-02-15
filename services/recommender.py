@@ -11,23 +11,64 @@ class RecipeRecommender:
     def calculate_ingredient_match_score(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema
     ) -> float:
-        """재료 매칭 점수 계산 (기존 로직 유지)"""
-        available_ingredients = set(user_profile.owned_ingredients.keys())
-        required_ingredients = set(recipe.ingredients.keys())
-        
-        matching_count = len(available_ingredients.intersection(required_ingredients))
-        total_count = len(required_ingredients)
-        
-        return matching_count / total_count if total_count > 0 else 0
+        """재료 매칭 점수 계산"""
+        try:
+            recipe_ingredients = recipe.ingredients  # {"재료명": 수량} 형태
+            user_ingredients = user_profile.owned_ingredients
+
+            if not recipe_ingredients or not user_ingredients:
+                return 0.0
+
+            available_ingredients = set(user_ingredients.keys())
+            required_ingredients = set(recipe_ingredients.keys())
+            
+            # 재료 매칭 (보유 여부)
+            matching_ingredients = available_ingredients.intersection(required_ingredients)
+            total_ingredients = len(required_ingredients)
+            if total_ingredients == 0:
+                return 0.0
+
+            # 수량 기반 점수 계산
+            quantity_scores = []
+            for ingredient in matching_ingredients:
+                required_amount = float(recipe_ingredients[ingredient])
+                available_amount = float(user_ingredients[ingredient])
+                
+                if required_amount <= 0:
+                    continue
+                    
+                # 필요량 대비 보유량의 비율
+                ratio = min(available_amount / required_amount, 1.0)
+                quantity_scores.append(ratio)
+
+            # 최종 점수 계산
+            base_match_score = len(matching_ingredients) / total_ingredients
+            quantity_score = (
+                sum(quantity_scores) / len(quantity_scores)
+                if quantity_scores
+                else 0.0
+            )
+
+            # 재료 매칭(60%)과 수량 매칭(40%) 반영
+            return (base_match_score * 0.6) + (quantity_score * 0.4)
+
+        except Exception as e:
+            print(f"Ingredient matching error: {str(e)}")
+            return 0.0
 
     def can_cook(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema
     ) -> bool:
-        """요리 가능 여부 확인 (기존 로직 유지)"""
-        return all(
-            user_profile.owned_ingredients.get(ing, 0) >= amt 
-            for ing, amt in recipe.ingredients.items()
-        )
+        """요리 가능 여부 확인"""
+        try:
+            for ingredient, required_amount in recipe.ingredients.items():
+                available_amount = user_profile.owned_ingredients.get(ingredient, 0)
+                if float(available_amount) < float(required_amount):
+                    return False
+            return True
+        except Exception as e:
+            print(f"Can cook check error: {str(e)}")
+            return False
 
     def calculate_nutrition_limits_score(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema
@@ -35,31 +76,37 @@ class RecipeRecommender:
         """영양소 제한 기반 점수 계산"""
         scores = []
         
+        # nutrition_limits가 없으면 1.0 반환
+        if not user_profile.nutrition_limits:
+            return 1.0
+        
+        limits = user_profile.nutrition_limits
+        
         # 각 영양소별 제한 체크
-        if user_profile.max_calories and recipe.calories:
-            if recipe.calories > user_profile.max_calories:
+        if recipe.calories and limits.max_calories:
+            if recipe.calories > limits.max_calories:
                 return 0.0  # 제한 초과시 즉시 0점 반환
-            scores.append(1 - (recipe.calories / user_profile.max_calories))
+            scores.append(1 - (recipe.calories / limits.max_calories))
         
-        if user_profile.max_carbs and recipe.carbs:
-            if float(recipe.carbs) > float(user_profile.max_carbs):
+        if recipe.carbs and limits.max_carbs:
+            if float(recipe.carbs) > float(limits.max_carbs):
                 return 0.0
-            scores.append(1 - (float(recipe.carbs) / float(user_profile.max_carbs)))
+            scores.append(1 - (float(recipe.carbs) / float(limits.max_carbs)))
         
-        if user_profile.max_protein and recipe.protein:
-            if float(recipe.protein) > float(user_profile.max_protein):
+        if recipe.protein and limits.max_protein:
+            if float(recipe.protein) > float(limits.max_protein):
                 return 0.0
-            scores.append(1 - (float(recipe.protein) / float(user_profile.max_protein)))
+            scores.append(1 - (float(recipe.protein) / float(limits.max_protein)))
         
-        if user_profile.max_fat and recipe.fat:
-            if float(recipe.fat) > float(user_profile.max_fat):
+        if recipe.fat and limits.max_fat:
+            if float(recipe.fat) > float(limits.max_fat):
                 return 0.0
-            scores.append(1 - (float(recipe.fat) / float(user_profile.max_fat)))
+            scores.append(1 - (float(recipe.fat) / float(limits.max_fat)))
         
-        if user_profile.max_sodium and recipe.sodium:
-            if float(recipe.sodium) > float(user_profile.max_sodium):
+        if recipe.sodium and limits.max_sodium:
+            if float(recipe.sodium) > float(limits.max_sodium):
                 return 0.0
-            scores.append(1 - (float(recipe.sodium) / float(user_profile.max_sodium)))
+            scores.append(1 - (float(recipe.sodium) / float(limits.max_sodium)))
         
         return sum(scores) / len(scores) if scores else 1.0
 

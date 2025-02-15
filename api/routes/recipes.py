@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import Field
 from api.dependencies import get_async_db, get_current_active_user
@@ -7,7 +7,7 @@ from crud import crud_recipe, crud_user
 from models.models import User
 from schemas.recipes import Recipe, RecipeCreate, RecipeUpdate,RecipeRating
 from schemas.users import UserProfile
-from services.recommender import RecipeRecommender
+from services import RecipeRecommender,RecipeService
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -105,49 +105,26 @@ async def delete_recipe(
     await crud_recipe.recipe.remove(db=db, id=recipe_id)
     return {"success": True}
 
-@router.post("/{recipe_id}/rating", response_model=UserProfile)
+@router.get("/recommendations/{user_id}/select/{recipe_id}", response_model=Recipe)
+async def select_recommended_recipe(
+    *,
+    db: AsyncSession = Depends(get_async_db),
+    user_id: int,
+    recipe_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    """추천된 레시피 선택 API 엔드포인트"""
+    recipe_service = RecipeService()
+    return await recipe_service.select_recipe(db, user_id, recipe_id)
+
+@router.post("/recommendations/{recipe_id}/rate", response_model=UserProfile)
 async def rate_recipe(
     *,
     db: AsyncSession = Depends(get_async_db),
     recipe_id: int,
-    rating_in: RecipeRating,
+    rating: float = Body(..., ge=0, le=5),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Rate a recipe and update Q-values"""
-    # Check if recipe exists
-    recipe = await crud_recipe.recipe.get(db=db, id=recipe_id)
-    if not recipe:
-        raise HTTPException(
-            status_code=404,
-            detail="Recipe not found"
-        )
-    
-    # Update user profile with rating
-    user_profile = await crud_user.user.get_profile(db=db, user_id=current_user.id)
-    if not user_profile:
-        raise HTTPException(
-            status_code=404,
-            detail="User profile not found"
-        )
-    
-    # Update rating
-    ratings = user_profile.ratings or {}
-    ratings[str(recipe_id)] = rating_in.rating
-    user_profile.ratings = ratings
-    
-    # Add to history if not exists
-    if recipe_id not in user_profile.recipe_history:
-        user_profile.recipe_history.append(recipe_id)
-    
-    # Update Q-value based on rating
-    recommender = RecipeRecommender()
-    await recommender.update_q_value(
-        db=db,
-        user_id=current_user.id,
-        recipe_id=recipe_id,
-        reward=rating_in.rating / 5.0  # Normalize rating to 0-1 range
-    )
-    
-    await db.commit()
-    await db.refresh(user_profile)
-    return user_profile
+    """레시피 평가 API 엔드포인트"""
+    recipe_service = RecipeService()
+    return await recipe_service.rate_recipe(db, current_user.id, recipe_id, rating)

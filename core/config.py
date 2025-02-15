@@ -2,25 +2,25 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # API 설정
-    PROJECT_NAME: str = "Recipe Recommendation System"
-    VERSION: str = "1.0.0"
-    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str 
+    VERSION: str
+    API_V1_STR: str
     
     # 보안 설정
-    SECRET_KEY: str = "your-super-secret-key-here"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
     
     # 데이터베이스 설정
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "3321"
-    POSTGRES_SERVER: str = "localhost:5432"
-    POSTGRES_DB: str = "postgres"
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_SERVER: str
+    POSTGRES_DB: str
     
     # OCR 및 OpenAI 설정 추가
-    CLOVA_OCR_API_URL: str = ""
-    CLOVA_OCR_SECRET_KEY: str = ""
-    OPENAI_API_KEY: str = ""
+    CLOVA_OCR_API_URL: str
+    CLOVA_OCR_SECRET_KEY: str
+    OPENAI_API_KEY: str
     
     @property
     def DATABASE_URL(self) -> str:

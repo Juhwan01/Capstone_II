@@ -8,12 +8,14 @@ from models.models import UserRole
 from fastapi import HTTPException
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
+    print("---------------------------------------------------")
     result = await db.execute(
         select(User).filter(User.email == email)
     )
     return result.scalar_one_or_none()
 
 async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User]:
+    print("---------------------------------------------------")
     result = await db.execute(
         select(User).filter(User.username == username)
     )

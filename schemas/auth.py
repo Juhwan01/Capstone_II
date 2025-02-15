@@ -42,6 +42,10 @@ class User(UserBase):
     trust_score: float
     created_at: datetime
     updated_at: datetime
+    address_name: str
+    zone_no: str
+    location_lat: float
+    location_lon: float
 
     class Config:
         from_attributes = True
