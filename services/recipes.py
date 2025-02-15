@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 keyId = "639e8e893d6445718216"
 serviceId = "COOKRCP01"
 startIdx = 1
-endIdx = 10
+endIdx = 50
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
