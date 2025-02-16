@@ -1,4 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Settings(BaseSettings):
     # API 설정
@@ -22,6 +25,10 @@ class Settings(BaseSettings):
     CLOVA_OCR_SECRET_KEY: str
     OPENAI_API_KEY: str
     
+    AWS_ACCESS_KEY_ID: str
+    AWS_SECRET_ACCESS_KEY: str
+    AWS_REGION: str 
+    AWS_S3_BUCKET_NAME: str 
 
   
 
