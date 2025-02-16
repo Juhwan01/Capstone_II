@@ -1,4 +1,3 @@
-# schemas/auth.py
 from typing import Optional
 from datetime import datetime
 from typing_extensions import Annotated
