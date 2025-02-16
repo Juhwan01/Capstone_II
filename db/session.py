@@ -12,7 +12,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
     echo=False,
     future=True,
-    connect_args={"ssl": ssl_context}  # SSL 컨텍스트 사용
+    #connect_args={"ssl": ssl_context}  # SSL 컨텍스트 사용
 )
 
 AsyncSessionLocal = sessionmaker(

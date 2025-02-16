@@ -216,5 +216,4 @@ class TempReceipt(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
-    value = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -9,6 +9,7 @@ from datetime import datetime
 from sqlalchemy import select
 from models.models import Ingredient, TempReceipt
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException
 
 class ReceiptService:
     def __init__(self):
@@ -50,32 +51,41 @@ class ReceiptService:
         db: AsyncSession, 
         temp_id: int, 
         category: str, 
-        expiry_date: datetime
+        expiry_date: datetime,
+        user_id: int
     ) -> Ingredient:
-        """임시 데이터를 ingredients 테이블로 이동"""
-        result = await db.execute(
-            select(TempReceipt).where(TempReceipt.id == temp_id)
-        )
-        temp_item = result.scalar_one_or_none()
-        
-        if not temp_item:
-            raise ValueError("임시 데이터를 찾을 수 없습니다")
+        try:
+            # 1. 임시 데이터 조회
+            result = await db.execute(
+                select(TempReceipt).where(TempReceipt.id == temp_id)
+            )
+            temp_item = result.scalar_one_or_none()
             
-        ingredient = Ingredient(
-            name=temp_item.name,
-            value=temp_item.value,
-            category=category,
-            expiry_date=expiry_date,
-            location_lat=37.5665,  # 서울시청 위도
-            location_lon=126.9780,  # 서울시청 경도
-            nutrition={}
-        )
-        
-        db.add(ingredient)
-        await db.delete(temp_item)
-        await db.commit()
-        
-        return ingredient
+            if not temp_item:
+                raise ValueError(f"임시 데이터를 찾을 수 없습니다. (ID: {temp_id})")
+            
+            # 2. ingredients 테이블에 저장
+            ingredient = Ingredient(
+                name=temp_item.name,
+                category=category,
+                expiry_date=expiry_date,
+                amount=1,  # 기본값으로 1 설정
+                user_id=user_id  # user_id 추가
+            )
+            
+            # 3. 데이터베이스 반영
+            db.add(ingredient)
+            await db.delete(temp_item)
+            await db.commit()
+            
+            return ingredient
+            
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"식재료 저장 중 오류가 발생했습니다: {str(e)}"
+            )
 
     async def _process_ocr(self, file: UploadFile) -> str:
         request_json = {
