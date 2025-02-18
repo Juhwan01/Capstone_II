@@ -20,31 +20,32 @@ class ReceiptService:
     async def analyze_receipt(self, file: UploadFile, db: AsyncSession) -> list:
         # OCR 분석
         ocr_result = await self._process_ocr(file)
-        print("OCR 결과:", ocr_result)
         
         # ChatGPT를 통한 데이터 추출
         extracted_items = await self._extract_data_with_gpt(ocr_result)
-        print("추출된 아이템:", extracted_items)
         
-        # 임시 테이블에 저장
-        temp_items = []
+        # 임시 테이블에 저장하고 temp_id 포함하여 반환
         try:
             for item in extracted_items:
-                print("저장할 아이템:", item)
                 temp_item = TempReceipt(
                     name=item['name'],
                     value=float(item['amount'])
                 )
                 db.add(temp_item)
-                temp_items.append(item)
+                await db.flush()  # temp_id를 얻기 위해 flush 실행
+                
+                # 기존 item 딕셔너리에 temp_id 추가
+                item['temp_id'] = temp_item.id
             
             await db.commit()
-            print("임시 데이터 저장 완료")
+            return extracted_items  # temp_id가 포함된 원본 아이템 리스트 반환
+            
         except Exception as e:
-            print("데이터베이스 저장 중 에러:", str(e))
-            raise
-        
-        return temp_items
+            await db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"영수증 분석 중 오류가 발생했습니다: {str(e)}"
+            )
 
     async def save_to_ingredients(
         self, 
