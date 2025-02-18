@@ -209,10 +209,7 @@ class ReceiptService:
         return {
             "id": temp_receipt.id,
             "name": temp_receipt.name,
-            "quantity": temp_receipt.quantity,
-            "price": temp_receipt.price,
-            "category": temp_receipt.category,
-            "expiry_date": temp_receipt.expiry_date
+            "created_at": temp_receipt.created_at
         }
 
     async def update_ingredient(
