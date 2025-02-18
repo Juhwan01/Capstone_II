@@ -10,6 +10,12 @@ from sqlalchemy import select
 from models.models import Ingredient, TempReceipt
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
+from typing import List, Dict, Any
+from fastapi import APIRouter, Depends
+from core.auth import get_current_active_user
+from core.database import get_async_db
+from models.models import User
+from schemas.receipts import TempReceiptUpdate, IngredientUpdate
 
 class ReceiptService:
     def __init__(self):
@@ -155,3 +161,156 @@ class ReceiptService:
             print(f"GPT 응답 파싱 에러: {str(e)}")
             print(f"GPT 응답 원문: {response_text}")
             return []
+
+    async def update_temp_receipt(
+        self,
+        db: AsyncSession,
+        temp_id: int,
+        update_data: TempReceiptUpdate,
+        user_id: int
+    ) -> dict:
+        """임시 저장된 영수증 데이터 수정"""
+        result = await db.execute(
+            select(TempReceipt).where(TempReceipt.id == temp_id)
+        )
+        temp_receipt = result.scalar_one_or_none()
+
+        if not temp_receipt:
+            raise HTTPException(
+                status_code=404,
+                detail="임시 저장된 데이터를 찾을 수 없습니다."
+            )
+
+        # 데이터 검증
+        update_dict = update_data.model_dump(exclude_unset=True)
+        
+        if 'quantity' in update_dict and update_dict['quantity'] < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="수량은 0보다 작을 수 없습니다."
+            )
+        
+        if 'price' in update_dict and update_dict['price'] < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="가격은 0보다 작을 수 없습니다."
+            )
+        
+        if 'expiry_date' in update_dict:
+            if update_dict['expiry_date'] < datetime.now():
+                raise HTTPException(
+                    status_code=400,
+                    detail="유통기한은 현재 시간보다 이전일 수 없습니다."
+                )
+
+        # 데이터 업데이트
+        update_dict = update_data.model_dump(exclude_unset=True)
+        for field, value in update_dict.items():
+            setattr(temp_receipt, field, value)
+
+        await db.commit()
+        await db.refresh(temp_receipt)
+
+        return {
+            "id": temp_receipt.id,
+            "name": temp_receipt.name,
+            "quantity": temp_receipt.quantity,
+            "price": temp_receipt.price,
+            "category": temp_receipt.category,
+            "expiry_date": temp_receipt.expiry_date
+        }
+
+    async def update_ingredient(
+        self,
+        db: AsyncSession,
+        ingredient_id: int,
+        update_data: IngredientUpdate,
+        user_id: int
+    ) -> dict:
+        """저장된 식재료 데이터 수정"""
+        result = await db.execute(
+            select(Ingredient).where(
+                (Ingredient.id == ingredient_id) & 
+                (Ingredient.user_id == user_id)
+            )
+        )
+        ingredient = result.scalar_one_or_none()
+
+        if not ingredient:
+            raise HTTPException(
+                status_code=404,
+                detail="식재료를 찾을 수 없거나 수정 권한이 없습니다."
+            )
+
+        # 데이터 검증
+        update_dict = update_data.model_dump(exclude_unset=True)
+        if 'quantity' in update_dict and update_dict['quantity'] < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="수량은 0보다 작을 수 없습니다."
+            )
+
+        if 'price' in update_dict and update_dict['price'] < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="가격은 0보다 작을 수 없습니다."
+            )
+
+        if 'expiry_date' in update_dict:
+            if update_dict['expiry_date'] < datetime.now():
+                raise HTTPException(
+                    status_code=400,
+                    detail="유통기한은 현재 시간보다 이전일 수 없습니다."
+                )
+
+        # 데이터 업데이트
+        for field, value in update_dict.items():
+            setattr(ingredient, field, value)
+
+        await db.commit()
+        await db.refresh(ingredient)
+
+        return {
+            "id": ingredient.id,
+            "name": ingredient.name,
+            "quantity": ingredient.quantity,
+            "price": ingredient.price,
+            "category": ingredient.category,
+            "expiry_date": ingredient.expiry_date,
+            "user_id": ingredient.user_id
+        }
+
+router = APIRouter()
+
+@router.post("/confirm-batch")
+async def confirm_items_batch(
+    items: List[Dict[str, Any]],
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """여러 임시 저장 상품을 한 번에 ingredients 테이블로 이동"""
+    receipt_service = ReceiptService()
+    results = []
+    
+    for item in items:
+        ingredient = await receipt_service.save_to_ingredients(
+            db,
+            temp_id=item["temp_id"],
+            category=item["category"],
+            expiry_date=item["expiry_date"],
+            user_id=current_user.id
+        )
+        
+        results.append({
+            "id": ingredient.id,
+            "name": ingredient.name,
+            "category": ingredient.category,
+            "expiry_date": ingredient.expiry_date,
+            "amount": ingredient.amount,
+            "user_id": ingredient.user_id
+        })
+    
+    return {
+        "message": "상품들이 성공적으로 저장되었습니다.",
+        "ingredients": results
+    }

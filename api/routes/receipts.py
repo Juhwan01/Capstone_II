@@ -51,4 +51,52 @@ async def confirm_item(
     return {
         "message": "상품이 성공적으로 저장되었습니다.",
         "ingredient": ingredient_dict
-    } 
+    }
+
+@router.delete("/temp/{temp_id}")
+async def delete_temp_item(
+    temp_id: int,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, str]:
+    """임시 저장된 상품을 삭제"""
+    receipt_service = ReceiptService()
+    await receipt_service.delete_temp_item(db, temp_id)
+    
+    return {
+        "message": "상품이 성공적으로 삭제되었습니다."
+    }
+
+@router.put("/temp/{temp_id}")
+async def update_temp_receipt(
+    temp_id: int,
+    update_data: TempReceiptUpdate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """임시 저장된 영수증 데이터 수정"""
+    receipt_service = ReceiptService()
+    updated_item = await receipt_service.update_temp_receipt(
+        db=db,
+        temp_id=temp_id,
+        update_data=update_data,
+        user_id=current_user.id
+    )
+    return updated_item
+
+@router.put("/ingredients/{ingredient_id}")
+async def update_ingredient(
+    ingredient_id: int,
+    update_data: IngredientUpdate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """저장된 식재료 데이터 수정"""
+    receipt_service = ReceiptService()
+    updated_ingredient = await receipt_service.update_ingredient(
+        db=db,
+        ingredient_id=ingredient_id,
+        update_data=update_data,
+        user_id=current_user.id
+    )
+    return updated_ingredient 
