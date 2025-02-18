@@ -266,7 +266,6 @@ class ReceiptService:
             "id": ingredient.id,
             "name": ingredient.name,
             "amount": ingredient.amount,
-            "price": ingredient.price,
             "category": ingredient.category,
             "expiry_date": ingredient.expiry_date,
             "user_id": ingredient.user_id
