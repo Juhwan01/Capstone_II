@@ -6,8 +6,14 @@ from models.models import User
 from datetime import datetime
 from typing import Dict, Any, List
 from schemas.receipts import TempReceiptUpdate, IngredientUpdate
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
+
+class ConfirmItemBatch(BaseModel):
+    temp_id: int
+    category: str
+    expiry_date: datetime
 
 @router.post("/upload")
 async def upload_receipt(
@@ -23,35 +29,6 @@ async def upload_receipt(
     return {
         "message": "영수증이 성공적으로 분석되었습니다. 각 상품의 카테고리와 유통기한을 입력해주세요.",
         "items": analyzed_items
-    }
-
-@router.post("/confirm/{temp_id}")
-async def confirm_item(
-    temp_id: int,
-    category: str,
-    expiry_date: datetime,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Dict[str, Any]:
-    """임시 저장된 상품을 ingredients 테이블로 이동"""
-    receipt_service = ReceiptService()
-    ingredient = await receipt_service.save_to_ingredients(
-        db, temp_id, category, expiry_date, current_user.id
-    )
-    
-    # Ingredient 객체를 dictionary로 변환
-    ingredient_dict = {
-        "id": ingredient.id,
-        "name": ingredient.name,
-        "category": ingredient.category,
-        "expiry_date": ingredient.expiry_date,
-        "amount": ingredient.amount,
-        "user_id": ingredient.user_id
-    }
-    
-    return {
-        "message": "상품이 성공적으로 저장되었습니다.",
-        "ingredient": ingredient_dict
     }
 
 @router.delete("/temp/{temp_id}")
@@ -110,4 +87,36 @@ async def get_my_ingredients(
     """사용자의 식재료 목록 조회"""
     receipt_service = ReceiptService()
     ingredients = await receipt_service.get_user_ingredients(db, current_user.id)
-    return ingredients 
+    return ingredients
+
+@router.post("/confirm-batch")
+async def confirm_items_batch(
+    items: List[ConfirmItemBatch],
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """여러 임시 저장 상품을 한 번에 ingredients 테이블로 이동"""
+    receipt_service = ReceiptService()
+    ingredients = []
+    
+    for item in items:
+        ingredient = await receipt_service.save_to_ingredients(
+            db,
+            item.temp_id,
+            item.category,
+            item.expiry_date,
+            current_user.id
+        )
+        ingredients.append({
+            "id": ingredient.id,
+            "name": ingredient.name,
+            "category": ingredient.category,
+            "expiry_date": ingredient.expiry_date,
+            "amount": ingredient.amount,
+            "user_id": ingredient.user_id
+        })
+    
+    return {
+        "message": "상품들이 성공적으로 저장되었습니다.",
+        "ingredients": ingredients
+    } 
