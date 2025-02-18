@@ -4,7 +4,7 @@ from api.dependencies import get_async_db, get_current_active_user
 from services.receipt_service import ReceiptService
 from models.models import User
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 from schemas.receipts import TempReceiptUpdate, IngredientUpdate
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
@@ -100,4 +100,14 @@ async def update_ingredient(
         update_data=update_data,
         user_id=current_user.id
     )
-    return updated_ingredient 
+    return updated_ingredient
+
+@router.get("/ingredients/my")
+async def get_my_ingredients(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+) -> List[Dict[str, Any]]:
+    """사용자의 식재료 목록 조회"""
+    receipt_service = ReceiptService()
+    ingredients = await receipt_service.get_user_ingredients(db, current_user.id)
+    return ingredients 

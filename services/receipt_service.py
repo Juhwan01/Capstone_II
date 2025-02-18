@@ -270,3 +270,26 @@ class ReceiptService:
             "expiry_date": ingredient.expiry_date,
             "user_id": ingredient.user_id
         }
+
+    async def get_user_ingredients(
+        self,
+        db: AsyncSession,
+        user_id: int
+    ) -> List[dict]:
+        """사용자의 식재료 목록 조회"""
+        result = await db.execute(
+            select(Ingredient).where(Ingredient.user_id == user_id)
+        )
+        ingredients = result.scalars().all()
+        
+        return [
+            {
+                "id": ingredient.id,
+                "name": ingredient.name,
+                "amount": ingredient.amount,
+                "category": ingredient.category,
+                "expiry_date": ingredient.expiry_date,
+                "user_id": ingredient.user_id
+            }
+            for ingredient in ingredients
+        ]
