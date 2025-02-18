@@ -5,7 +5,7 @@ import requests
 import uuid
 import time
 from core.config import settings
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select
 from models.models import Ingredient, TempReceipt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -80,16 +80,20 @@ class ReceiptService:
             if not temp_item:
                 raise ValueError(f"임시 데이터를 찾을 수 없습니다. (ID: {temp_id})")
             
-            # 2. ingredients 테이블에 저장
+            # 2. timezone 처리
+            if expiry_date.tzinfo:
+                expiry_date = expiry_date.astimezone(timezone.utc).replace(tzinfo=None)
+            
+            # 3. ingredients 테이블에 저장
             ingredient = Ingredient(
                 name=temp_item.name,
                 category=category,
-                expiry_date=expiry_date,
+                expiry_date=expiry_date,  # 변환된 시간 사용
                 amount=1,  # 기본값으로 1 설정
                 user_id=user_id  # user_id 추가
             )
             
-            # 3. 데이터베이스 반영
+            # 4. 데이터베이스 반영
             db.add(ingredient)
             await db.delete(temp_item)
             await db.commit()
@@ -227,13 +231,13 @@ class ReceiptService:
             )
         )
         ingredient = result.scalar_one_or_none()
-
+        
         if not ingredient:
             raise HTTPException(
                 status_code=404,
                 detail="식재료를 찾을 수 없거나 수정 권한이 없습니다."
             )
-
+        
         # 데이터 검증
         update_dict = update_data.model_dump(exclude_unset=True)
         if 'amount' in update_dict and update_dict['amount'] < 0:
@@ -249,7 +253,9 @@ class ReceiptService:
             )
 
         if 'expiry_date' in update_dict:
-            if update_dict['expiry_date'] < datetime.now():
+            current_time = datetime.now(timezone.utc)
+            expiry_date = update_dict['expiry_date']
+            if expiry_date.replace(tzinfo=timezone.utc) < current_time:
                 raise HTTPException(
                     status_code=400,
                     detail="유통기한은 현재 시간보다 이전일 수 없습니다."
