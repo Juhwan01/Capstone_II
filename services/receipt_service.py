@@ -20,35 +20,41 @@ class ReceiptService:
     async def analyze_receipt(self, file: UploadFile, db: AsyncSession) -> list:
         # OCR 분석
         ocr_result = await self._process_ocr(file)
+        print("OCR 결과:", ocr_result)
         
         # ChatGPT를 통한 데이터 추출
         items = await self._extract_data_with_gpt(ocr_result)
+        print("GPT 추출 결과:", items)
+        print("GPT 추출 결과 타입:", type(items))
+        if items:
+            print("첫 번째 아이템:", items[0])
+            print("첫 번째 아이템 타입:", type(items[0]))
         
-        # 임시 테이블에 저장
-        temp_items = []
         try:
+            temp_items = []
             for item in items:
-                # TempReceipt 테이블에 저장
+                print("현재 처리 중인 아이템:", item)
+                # TempReceipt 테이블에 저장 (name만 사용)
                 temp_receipt = TempReceipt(
-                    name=item['name'],
-                    value=float(item['amount'])
+                    name=item['name']
                 )
+                print("생성된 TempReceipt:", temp_receipt.__dict__)  # 객체의 속성 확인
                 db.add(temp_receipt)
-                await db.flush()  # ID를 얻기 위해 flush
+                await db.flush()
                 
-                # 응답용 데이터 구성
-                temp_items.append({
-                    "id": temp_receipt.id,  # 생성된 temp_id
-                    "name": item['name'],
-                    "amount": item['amount'],
-                    "quantity": item.get('quantity', 1),
-                    "purchase_date": item.get('purchase_date')
-                })
+                # 원본 아이템에 temp_id 추가
+                item['temp_id'] = temp_receipt.id
+                temp_items.append(item)
             
             await db.commit()
+            print("저장 완료된 아이템들:", temp_items)
             return temp_items
             
         except Exception as e:
+            print(f"에러 발생 위치: {e.__traceback__.tb_frame.f_code.co_name}")
+            print(f"에러 발생 라인: {e.__traceback__.tb_lineno}")
+            print(f"에러 메시지: {str(e)}")
+            print(f"에러 타입: {type(e)}")
             await db.rollback()
             raise HTTPException(
                 status_code=500,
@@ -134,18 +140,18 @@ class ReceiptService:
                                 "purchase_date": "YYYY-MM-DD"
                             }
                         ]
-                    }
-                    반드시 유효한 JSON 형식으로 응답해주세요."""
+                    }"""
                 },
                 {"role": "user", "content": text}
             ]
         )
-
+        
         try:
-            # ChatGPT 응답에서 JSON 문자열 추출 및 파싱
             response_text = response.choices[0].message.content
+            print("GPT 원본 응답:", response_text)
             data = json.loads(response_text)
-            return data.get('items', [])  # items 키가 없으면 빈 리스트 반환
-        except (json.JSONDecodeError, KeyError) as e:
-            print(f"GPT 응답 파싱 에러: {response_text}")
+            return data.get('items', [])
+        except Exception as e:
+            print(f"GPT 응답 파싱 에러: {str(e)}")
+            print(f"GPT 응답 원문: {response_text}")
             return []
