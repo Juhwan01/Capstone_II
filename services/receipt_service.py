@@ -179,7 +179,7 @@ class ReceiptService:
         # 데이터 검증
         update_dict = update_data.model_dump(exclude_unset=True)
         
-        if 'quantity' in update_dict and update_dict['quantity'] < 0:
+        if 'amount' in update_dict and update_dict['amount'] < 0:
             raise HTTPException(
                 status_code=400,
                 detail="수량은 0보다 작을 수 없습니다."
@@ -236,7 +236,7 @@ class ReceiptService:
 
         # 데이터 검증
         update_dict = update_data.model_dump(exclude_unset=True)
-        if 'quantity' in update_dict and update_dict['quantity'] < 0:
+        if 'amount' in update_dict and update_dict['amount'] < 0:
             raise HTTPException(
                 status_code=400,
                 detail="수량은 0보다 작을 수 없습니다."
@@ -265,7 +265,7 @@ class ReceiptService:
         return {
             "id": ingredient.id,
             "name": ingredient.name,
-            "quantity": ingredient.quantity,
+            "amount": ingredient.amount,
             "price": ingredient.price,
             "category": ingredient.category,
             "expiry_date": ingredient.expiry_date,
