@@ -1,4 +1,4 @@
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 from openai import OpenAI
 import json
 import requests
@@ -9,12 +9,7 @@ from datetime import datetime
 from sqlalchemy import select
 from models.models import Ingredient, TempReceipt
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends
-from core.auth import get_current_active_user
-from core.database import get_async_db
-from models.models import User
 from schemas.receipts import TempReceiptUpdate, IngredientUpdate
 
 class ReceiptService:
@@ -279,38 +274,3 @@ class ReceiptService:
             "expiry_date": ingredient.expiry_date,
             "user_id": ingredient.user_id
         }
-
-router = APIRouter()
-
-@router.post("/confirm-batch")
-async def confirm_items_batch(
-    items: List[Dict[str, Any]],
-    db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Dict[str, Any]:
-    """여러 임시 저장 상품을 한 번에 ingredients 테이블로 이동"""
-    receipt_service = ReceiptService()
-    results = []
-    
-    for item in items:
-        ingredient = await receipt_service.save_to_ingredients(
-            db,
-            temp_id=item["temp_id"],
-            category=item["category"],
-            expiry_date=item["expiry_date"],
-            user_id=current_user.id
-        )
-        
-        results.append({
-            "id": ingredient.id,
-            "name": ingredient.name,
-            "category": ingredient.category,
-            "expiry_date": ingredient.expiry_date,
-            "amount": ingredient.amount,
-            "user_id": ingredient.user_id
-        })
-    
-    return {
-        "message": "상품들이 성공적으로 저장되었습니다.",
-        "ingredients": results
-    }
