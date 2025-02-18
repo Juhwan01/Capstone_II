@@ -22,23 +22,31 @@ class ReceiptService:
         ocr_result = await self._process_ocr(file)
         
         # ChatGPT를 통한 데이터 추출
-        extracted_items = await self._extract_data_with_gpt(ocr_result)
+        items = await self._extract_data_with_gpt(ocr_result)
         
-        # 임시 테이블에 저장하고 temp_id 포함하여 반환
+        # 임시 테이블에 저장
+        temp_items = []
         try:
-            for item in extracted_items:
-                temp_item = TempReceipt(
+            for item in items:
+                # TempReceipt 테이블에 저장
+                temp_receipt = TempReceipt(
                     name=item['name'],
                     value=float(item['amount'])
                 )
-                db.add(temp_item)
-                await db.flush()  # temp_id를 얻기 위해 flush 실행
+                db.add(temp_receipt)
+                await db.flush()  # ID를 얻기 위해 flush
                 
-                # 기존 item 딕셔너리에 temp_id 추가
-                item['temp_id'] = temp_item.id
+                # 응답용 데이터 구성
+                temp_items.append({
+                    "id": temp_receipt.id,  # 생성된 temp_id
+                    "name": item['name'],
+                    "amount": item['amount'],
+                    "quantity": item.get('quantity', 1),
+                    "purchase_date": item.get('purchase_date')
+                })
             
             await db.commit()
-            return extracted_items  # temp_id가 포함된 원본 아이템 리스트 반환
+            return temp_items
             
         except Exception as e:
             await db.rollback()
