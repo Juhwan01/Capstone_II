@@ -47,6 +47,7 @@ class CRUDsale:
                 ingredient_id=sale_data.ingredient_id,
                 ingredient_name=sale_data.ingredient_name,
                 seller_id=sale_data.seller_id,
+                title = sale_data.title ,
                 value=sale_data.value,
                 location_lat=sale_data.location_lat,
                 location_lon=sale_data.location_lon,
@@ -68,6 +69,7 @@ class CRUDsale:
                 "ingredient_name": sale.ingredient_name,
                 "seller_id": sale.seller_id,
                 "value": sale.value,
+                "title" : sale.title,
                 "location": {
                     "latitude": sale.location_lat,
                     "longitude": sale.location_lon,

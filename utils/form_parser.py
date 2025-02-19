@@ -5,6 +5,7 @@ def parse_sale_form(
     ingredient_id: int = Form(...),
     ingredient_name: str = Form(...),
     seller_id: int = Form(...),
+    title: str = Form(...),
     value: float = Form(...),
     location_lat: float = Form(...),
     location_lon: float = Form(...),
@@ -23,6 +24,7 @@ def parse_sale_form(
         location_lat=location_lat,
         location_lon=location_lon,
         expiry_date=expiry_date,
+        title=title,
         status=status,
         contents=contents
     )

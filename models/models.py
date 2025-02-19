@@ -106,6 +106,7 @@ class Sale(Base):
     value = Column(Float, nullable=False)  # 판매 가격
     location_lat = Column(Float, nullable=False)  # 판매 위치 위도
     location_lon = Column(Float, nullable=False)  # 판매 위치 경도
+    title = Column (String , nullable=False)
     status = Column(String, nullable=False, default="Available")  # 판매 상태
     expiry_date = Column(DateTime, nullable=False)
     contents = Column(String , nullable= False ) # 내용 추가

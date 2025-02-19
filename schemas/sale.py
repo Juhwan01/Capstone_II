@@ -9,6 +9,7 @@ class SaleCreate(BaseModel):
     value: float
     location_lat: float
     location_lon: float
+    title : str
     expiry_date: datetime
     status: Optional[str] = Field(default="Available")
     contents: Optional[str]
@@ -16,6 +17,7 @@ class SaleResponse(BaseModel):
     id: int
     ingredient_id: int
     ingredient_name : str
+    title : str
     seller_id: int
     value: float
     location : dict
