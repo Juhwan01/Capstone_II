@@ -20,6 +20,22 @@ class CRUDsale:
             if not image_urls:
                 return {"error": "S3 이미지 업로드 실패"}
 
+            # ✅ Ingredient 테이블에서 재료 조회
+            ingredient_result = await self.db.execute(
+                select(Ingredient).where(Ingredient.id == sale_data.ingredient_id)
+            )
+            ingredient = ingredient_result.scalar_one_or_none()
+
+            if ingredient:
+                # ✅ amount가 충분한지 확인 후 차감
+                if ingredient.amount >= sale_data.amount:
+                    ingredient.amount -= sale_data.amount
+                    await self.db.flush()  # 변경사항 반영
+                else:
+                    return {"error": "재고 부족: 해당 재료의 수량이 부족합니다."}
+            else:
+                return {"error": "해당 재료를 찾을 수 없습니다."}
+
             # ✅ Sale 인스턴스 생성
             sale = Sale(
                 ingredient_id=sale_data.ingredient_id,
@@ -31,7 +47,8 @@ class CRUDsale:
                 location_lon=sale_data.location_lon,
                 expiry_date=sale_data.expiry_date,
                 status=sale_data.status,
-                contents=sale_data.contents
+                contents=sale_data.contents,
+                amount=sale_data.amount  # ✅ 추가된 amount 값 저장
             )
             self.db.add(sale)
             await self.db.flush()  # ✅ `sale.id`를 얻기 위해 flush 실행
@@ -40,7 +57,7 @@ class CRUDsale:
             image_objects = [Image(sale_id=sale.id, image_url=url) for url in image_urls]
             self.db.add_all(image_objects)
 
-            # ✅ DB 커밋 및 최신화
+            # ✅ DB 커밋
             await self.db.commit()
 
             # ✅ 관계를 최신화하기 위해 `selectinload()` 사용하여 다시 조회
@@ -68,7 +85,8 @@ class CRUDsale:
                 "expiry_date": sale.expiry_date,
                 "status": sale.status,
                 "contents": sale.contents,
-                "images" : image_urls  # ✅ images 리스트 반환
+                "amount": sale.amount,  # ✅ 추가된 amount 반환
+                "images": image_urls
             }
 
         except Exception as e:
@@ -76,7 +94,6 @@ class CRUDsale:
             print(f"🚨 Unexpected error: {e}")
             traceback.print_exc()
             return {"error": "Unexpected error", "details": str(e)}
-
 
 
     async def delete_sale(self, sale_id: int) -> dict:

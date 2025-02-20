@@ -11,7 +11,8 @@ def parse_sale_form(
     location_lon: float = Form(...),
     expiry_date: str = Form(...),
     status: str = Form("Available"),
-    contents: str = Form(...)
+    contents: str = Form(...),
+    amount: int = Form(...)
 ) -> SaleCreate:
     """
     Form 데이터를 SaleCreate Pydantic 모델로 변환 (파일 제외)
@@ -20,6 +21,7 @@ def parse_sale_form(
         ingredient_id=ingredient_id,
         ingredient_name=ingredient_name,
         seller_id=seller_id,
+        amount= amount,
         value=value,
         location_lat=location_lat,
         location_lon=location_lon,

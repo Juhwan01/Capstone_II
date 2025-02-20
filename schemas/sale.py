@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 
 class SaleCreate(BaseModel):
@@ -12,6 +12,7 @@ class SaleCreate(BaseModel):
     title : str
     expiry_date: datetime
     status: Optional[str] = Field(default="Available")
+    amount: int
     contents: Optional[str]
 class SaleResponse(BaseModel):
     id: int
@@ -23,7 +24,7 @@ class SaleResponse(BaseModel):
     location : dict
     expiry_date: datetime
     status: str
-    image_url: Optional[str]
+    images: List[str]
     contents: Optional[str]
 
     class Config:
