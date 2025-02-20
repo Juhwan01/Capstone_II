@@ -110,10 +110,20 @@ class Sale(Base):
     status = Column(String, nullable=False, default="Available")  # 판매 상태
     expiry_date = Column(DateTime, nullable=False)
     contents = Column(String , nullable= False ) # 내용 추가
-    image_url = Column(String, nullable=True)  # ✅ 이미지 URL 필드 추가
 
     ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
     seller = relationship("User", back_populates="sales")  # 관계 설정
+
+    images = relationship("Image", back_populates="sale", cascade="all, delete")
+
+class Image(Base):
+    __tablename__ = "images"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sale_id = Column(Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=False)
+    image_url = Column(String, nullable=False)
+
+    sale = relationship("Sale", back_populates="images")
 
 class Transaction(Base):
     __tablename__ = 'transaction'
