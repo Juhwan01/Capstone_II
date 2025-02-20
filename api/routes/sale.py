@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.dependencies import get_async_db
 from schemas.sale import SaleCreate, SaleResponse
 from crud.crud_sale import CRUDsale
-from services.s3_service import upload_images_to_s3
+from services.s3_service import delete_images_from_s3, upload_images_to_s3
 from utils.form_parser import parse_sale_form
 
 router = APIRouter()
@@ -12,7 +12,7 @@ router = APIRouter()
 @router.post("/sales/", response_model=SaleResponse)
 async def create_sale(
     sale_data: SaleCreate = Depends(parse_sale_form),
-    files: List[UploadFile] = File(...),
+    files: Optional[List[UploadFile]] = File(None),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -28,7 +28,8 @@ async def create_sale(
                 status_code=400,
                 detail=f"Unsupported file extension: {file_ext}"
             )
-
+            
+  
     # S3 업로드
     image_urls = await upload_images_to_s3(files)
     if not image_urls:
@@ -57,3 +58,51 @@ async def delete_sale(
         raise HTTPException(status_code=400, detail=result["error"])
 
     return {"message": "Sale and images successfully deleted"}
+
+@router.put("/sales/{sale_id}", response_model=SaleResponse)
+async def update_sale(
+    sale_id: int,
+    sale_data: SaleCreate = Depends(parse_sale_form),
+    files: Optional[List[UploadFile]] = File(None),  # 이미지 업데이트 선택적
+    db: AsyncSession = Depends(get_async_db)
+):
+    """
+    판매 정보 수정 엔드포인트
+    - 제목, 가격, 수량(amount), 내용 등 변경 가능
+    - 이미지 변경 시 기존 이미지 삭제 후 새 이미지 업로드
+    """
+    sale_service = CRUDsale(db)
+
+    # 기존 판매 정보 가져오기
+    result = await sale_service.get_sale_by_id(sale_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Sale not found")
+
+    # **이미지 변경을 원할 경우**: 기존 이미지 삭제 후 새 이미지 업로드
+    image_urls = None  # 기본값은 None (변경하지 않을 경우)
+    if files:
+        for file in files:
+            file_ext = file.filename.split('.')[-1].lower()
+            if file_ext not in {'png', 'jpg', 'jpeg', 'gif'}:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported file extension: {file_ext}"
+                )
+
+        # 기존 이미지 삭제 (S3에서 삭제)
+        existing_images = [img.image_url for img in result.images]
+        if existing_images:
+            await delete_images_from_s3(existing_images)
+
+        # 새로운 이미지 업로드
+        image_urls = await upload_images_to_s3(files)
+        if not image_urls:
+            raise HTTPException(status_code=500, detail="Failed to upload new images to S3")
+
+    # 판매 정보 업데이트 수행
+    update_result = await sale_service.update_sale(sale_id, sale_data, image_urls)
+
+    if "error" in update_result:
+        raise HTTPException(status_code=400, detail=update_result["error"])
+
+    return update_result

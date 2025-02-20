@@ -124,7 +124,7 @@ class Image(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     sale_id = Column(Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=False)
-    image_url = Column(String, nullable=False)
+    image_url = Column(String, nullable=True)
 
     sale = relationship("Sale", back_populates="images")
 
