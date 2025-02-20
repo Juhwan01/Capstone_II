@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.dependencies import get_async_db, get_current_user
 from services.ingredient_matcher import IngredientMatcher
 from crud.crud_ingredient import CRUDIngredient
-from schemas.ingredient import IngredientCreate
+from schemas.ingredient import IngredientCreate, IngredientUpdate
 from typing import List
 
 
@@ -52,3 +52,14 @@ async def delete_multiple_ingredients(
     """ 여러 개의 재료 삭제 """
     crud = CRUDIngredient(db)
     return await crud.delete_multiple_ingredients(ingredient_ids, user.id)
+
+@router.put("/ingredients/{ingredient_id}")
+async def update_ingredient(
+            ingredient_id: int,
+            payload: IngredientUpdate,
+            user=Depends(get_current_user),
+            db: AsyncSession = Depends(get_async_db)
+        ):
+            """ 특정 재료 업데이트 """
+            crud = CRUDIngredient(db)
+            return await crud.update_ingredient(ingredient_id, payload, user.id)

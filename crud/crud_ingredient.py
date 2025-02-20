@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.models import IngredientRequest, Ingredient, UserProfile
 from datetime import datetime
-from schemas.ingredient import IngredientCreate
+from schemas.ingredient import IngredientCreate, IngredientUpdate
 from sqlalchemy.orm.attributes import flag_modified
 from typing import List
 import json
@@ -129,3 +129,45 @@ class CRUDIngredient:
             await self.db.commit()
 
         return {"message": f"{len(ingredients)} ingredients deleted successfully"}
+
+    async def update_ingredient(self, ingredient_id: int, ingredient_data: IngredientUpdate, user_id: int):
+            """ 특정 재료 업데이트 """
+            # 재료 조회
+            ingredient_query = await self.db.execute(
+                select(Ingredient).filter_by(id=ingredient_id, user_id=user_id)
+            )
+            ingredient = ingredient_query.scalar_one_or_none()
+
+            if not ingredient:
+                return {"error": "Ingredient not found or unauthorized"}
+
+            # 변경 사항 반영
+            if ingredient_data.name is not None:
+                ingredient.name = ingredient_data.name
+            if ingredient_data.category is not None:
+                ingredient.category = ingredient_data.category
+            if ingredient_data.expiry_date is not None:
+                ingredient.expiry_date = ingredient_data.expiry_date
+            if ingredient_data.amount is not None:
+                ingredient.amount = ingredient_data.amount
+
+            await self.db.commit()
+            await self.db.refresh(ingredient)
+
+            # 유저 프로필 업데이트 (재료 정보 반영)
+            user_request = await self.db.execute(select(UserProfile).filter_by(user_id=user_id))
+            user = user_request.scalar_one_or_none()
+
+            if user and user.owned_ingredients:
+                if str(ingredient.id) in user.owned_ingredients:
+                    user.owned_ingredients[str(ingredient.id)] = {
+                        "name": ingredient.name,
+                        "amount": ingredient.amount
+                    }
+                    flag_modified(user, "owned_ingredients")
+                    self.db.add(user)
+                    await self.db.commit()
+
+            return ingredient
+
+
