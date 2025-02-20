@@ -1,66 +1,57 @@
 import traceback
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload  # ✅ 관계 강제 로드 추가
 from sqlalchemy.exc import IntegrityError
-from models.models import Sale, Ingredient, User
+from models.models import Sale, Ingredient, User, Image
 from schemas.sale import SaleCreate
-from services.s3_service import upload_image_to_s3, delete_image_from_s3
+from services.s3_service import upload_images_to_s3, delete_images_from_s3
 from fastapi import UploadFile
-from datetime import datetime
-import pytz
 
 class CRUDsale:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def register_sale(self, sale_data: SaleCreate, file: UploadFile) -> dict:
-        """상품을 등록하고 AWS S3에 이미지를 업로드"""
+    async def register_sale(self, sale_data: SaleCreate, image_urls: List[str]) -> dict:
         try:
-            # ✅ Ingredient 존재 확인
-            ingredient = await self.db.execute(
-                select(Ingredient).where(Ingredient.id == sale_data.ingredient_id)
-            )
-            ingredient = ingredient.scalars().first()
-            if not ingredient:
-                return {"error": f"Ingredient with ID {sale_data.ingredient_id} does not exist"}
+            print(f"📌 저장할 이미지 URL 리스트: {image_urls}")  # ✅ 디버깅 코드 추가
 
-            # ✅ User 존재 확인
-            seller = await self.db.execute(
-                select(User).where(User.id == sale_data.seller_id)
-            )
-            seller = seller.scalars().first()
-            if not seller:
-                return {"error": f"Seller with ID {sale_data.seller_id} does not exist"}
-
-            # ✅ AWS S3 이미지 업로드
-            image_url = await upload_image_to_s3(file)
-            if not image_url:
+            if not image_urls:
                 return {"error": "S3 이미지 업로드 실패"}
-
-            # ✅ 날짜 변환 (UTC 변환)
-            expiry_date = sale_data.expiry_date
-            if isinstance(expiry_date, datetime) and expiry_date.tzinfo:
-                expiry_date = expiry_date.astimezone(pytz.UTC).replace(tzinfo=None)
 
             # ✅ Sale 인스턴스 생성
             sale = Sale(
                 ingredient_id=sale_data.ingredient_id,
                 ingredient_name=sale_data.ingredient_name,
                 seller_id=sale_data.seller_id,
-                title = sale_data.title ,
+                title=sale_data.title,
                 value=sale_data.value,
                 location_lat=sale_data.location_lat,
                 location_lon=sale_data.location_lon,
-                expiry_date=expiry_date,
+                expiry_date=sale_data.expiry_date,
                 status=sale_data.status,
-                contents =sale_data.contents,
-                image_url=image_url  # ✅ S3에서 반환된 이미지 URL 저장
+                contents=sale_data.contents
             )
-
-            # ✅ 데이터베이스에 추가
             self.db.add(sale)
+            await self.db.flush()  # ✅ `sale.id`를 얻기 위해 flush 실행
+
+            # ✅ Image 테이블에 `image_urls` 리스트를 저장 (각 URL마다 한 행씩)
+            image_objects = [Image(sale_id=sale.id, image_url=url) for url in image_urls]
+            self.db.add_all(image_objects)
+
+            # ✅ DB 커밋 및 최신화
             await self.db.commit()
-            await self.db.refresh(sale)
+
+            # ✅ 관계를 최신화하기 위해 `selectinload()` 사용하여 다시 조회
+            result = await self.db.execute(
+                select(Sale).options(selectinload(Sale.images)).where(Sale.id == sale.id)
+            )
+            sale = result.scalar_one_or_none()
+
+            # ✅ 디버깅용 로그 출력 (데이터 확인)
+            print(f"📌 Sale ID: {sale.id}")
+            print(f"📌 Images loaded: {[img.image_url for img in sale.images]}")
 
             return {
                 "message": "Sale successfully registered",
@@ -68,51 +59,52 @@ class CRUDsale:
                 "ingredient_id": sale.ingredient_id,
                 "ingredient_name": sale.ingredient_name,
                 "seller_id": sale.seller_id,
+                "title": sale.title,
                 "value": sale.value,
-                "title" : sale.title,
                 "location": {
                     "latitude": sale.location_lat,
                     "longitude": sale.location_lon,
                 },
                 "expiry_date": sale.expiry_date,
                 "status": sale.status,
-                "image_url": sale.image_url,
-                "contents" : sale.contents
+                "contents": sale.contents,
+                "images" : image_urls  # ✅ images 리스트 반환
             }
-
-        except IntegrityError as e:
-            await self.db.rollback()
-            print(f"🚨 IntegrityError: {e}")
-            return {"error": "Database integrity error", "details": str(e)}
 
         except Exception as e:
             await self.db.rollback()
-            traceback.print_exc()
             print(f"🚨 Unexpected error: {e}")
+            traceback.print_exc()
             return {"error": "Unexpected error", "details": str(e)}
+
+
 
     async def delete_sale(self, sale_id: int) -> dict:
         """상품 삭제 및 AWS S3 이미지 삭제"""
         try:
-            result = await self.db.execute(select(Sale).where(Sale.id == sale_id))
+            # ✅ Sale 및 연결된 이미지 조회 (이미지 관계 강제 로드)
+            result = await self.db.execute(
+                select(Sale).options(selectinload(Sale.images)).where(Sale.id == sale_id)
+            )
             sale = result.scalar_one_or_none()
 
             if not sale:
                 return {"error": "Sale not found"}
 
-            image_url = sale.image_url  # 삭제할 이미지 URL 저장
+            # ✅ 연결된 이미지 URL 추출
+            image_urls = [img.image_url for img in sale.images] if sale.images else []
 
-            # ✅ DB에서 상품 삭제
+            # ✅ DB에서 상품 삭제 (Cascade로 Image도 자동 삭제됨)
             await self.db.delete(sale)
             await self.db.commit()
 
             # ✅ AWS S3에서 이미지 삭제 (이미지가 있는 경우)
-            if image_url:
-                success = await delete_image_from_s3(image_url)
+            if image_urls:
+                success = await delete_images_from_s3(image_urls)
                 if not success:
                     return {"error": "Failed to delete image from S3"}
 
-            return {"message": "Sale and image successfully deleted"}
+            return {"message": "Sale and images successfully deleted"}
 
         except Exception as e:
             await self.db.rollback()

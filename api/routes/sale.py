@@ -1,29 +1,46 @@
+from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.dependencies import get_async_db
 from schemas.sale import SaleCreate, SaleResponse
 from crud.crud_sale import CRUDsale
-from utils.form_parser import parse_sale_form  # ✅ Form 데이터 변환 유틸리티 추가
+from services.s3_service import upload_images_to_s3
+from utils.form_parser import parse_sale_form
 
 router = APIRouter()
 
 @router.post("/sales/", response_model=SaleResponse)
 async def create_sale(
-    sale_data: SaleCreate = Depends(parse_sale_form),  # ✅ Form 데이터 자동 변환
-    file: UploadFile = File(...),  # ✅ 이미지 파일 업로드 추가
+    sale_data: SaleCreate = Depends(parse_sale_form),
+    files: List[UploadFile] = File(...),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
     판매 등록 엔드포인트 (AWS S3 이미지 업로드 포함)
     """
     sale_service = CRUDsale(db)
-    result = await sale_service.register_sale(sale_data, file)  # ✅ `dict()` 제거하여 직접 전달
+
+    # 이미지 파일 확장자 검사만 수행
+    for file in files:
+        file_ext = file.filename.split('.')[-1].lower()
+        if file_ext not in {'png', 'jpg', 'jpeg', 'gif'}:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file extension: {file_ext}"
+            )
+
+    # S3 업로드
+    image_urls = await upload_images_to_s3(files)
+    if not image_urls:
+        raise HTTPException(status_code=500, detail="Failed to upload images to S3")
+
+    # 판매 등록 및 이미지 저장
+    result = await sale_service.register_sale(sale_data, image_urls)
 
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
 
     return result
-
 
 @router.delete("/sales/{sale_id}")
 async def delete_sale(
@@ -39,4 +56,4 @@ async def delete_sale(
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
 
-    return {"message": "Sale and image successfully deleted"}
+    return {"message": "Sale and images successfully deleted"}
