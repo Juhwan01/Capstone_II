@@ -106,3 +106,14 @@ async def update_sale(
         raise HTTPException(status_code=400, detail=update_result["error"])
 
     return update_result
+
+
+@router.get("/sales/", response_model=List[SaleResponse])
+async def get_all_sales(db: AsyncSession = Depends(get_async_db)):
+    """
+    모든 판매 상품 조회 API
+    """
+    sale_service = CRUDsale(db)
+    sales = await sale_service.get_all_sales()
+
+    return sales

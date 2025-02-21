@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload  # ✅ 관계 강제 로드 추가
 from sqlalchemy.exc import IntegrityError
 from models.models import Sale, Ingredient, User, Image
-from schemas.sale import SaleCreate
+from schemas.sale import SaleCreate, SaleImageResponse, SaleResponse
 from services.s3_service import upload_images_to_s3, delete_images_from_s3
 from fastapi import UploadFile
 
@@ -228,3 +228,32 @@ class CRUDsale:
             select(Sale).options(selectinload(Sale.images)).where(Sale.id == sale_id)
         )
         return result.scalar_one_or_none()
+    async def get_all_sales(self):
+            """ 등록된 모든 상품 조회 (이미지 포함) """
+            result = await self.db.execute(
+                select(Sale).options(selectinload(Sale.images))
+            )
+            sales = result.scalars().all()
+
+            # ✅ SaleResponse 형식으로 변환
+            sales_list = []
+            for sale in sales:
+                sales_list.append(SaleResponse(
+                    id=sale.id,
+                    ingredient_id=sale.ingredient_id,
+                    ingredient_name=sale.ingredient_name,
+                    seller_id=sale.seller_id,
+                    title=sale.title,
+                    value=sale.value,
+                    location={  # ✅ location 필드 추가
+                    "latitude": sale.location_lat,
+                    "longitude": sale.location_lon
+                    },
+                    expiry_date=sale.expiry_date,
+                    status=sale.status,
+                    amount=sale.amount,
+                    contents=sale.contents,
+                    images=[SaleImageResponse(image_url=img.image_url) for img in sale.images]
+                ))
+
+            return sales_list
