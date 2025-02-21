@@ -31,7 +31,7 @@ class SaleResponse(BaseModel):
     location : Optional[dict] = None
     expiry_date: datetime
     status: str
-    images: List[SaleImageResponse] =None
+    images: List[str] =[]
     contents: Optional[str]
 
     class Config:
