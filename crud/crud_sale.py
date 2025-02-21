@@ -1,6 +1,6 @@
 import traceback
 from typing import List, Optional
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload  # ✅ 관계 강제 로드 추가
@@ -9,6 +9,8 @@ from models.models import Sale, Ingredient, User, Image
 from schemas.sale import SaleCreate, SaleImageResponse, SaleResponse
 from services.s3_service import upload_images_to_s3, delete_images_from_s3
 from fastapi import UploadFile
+from sqlalchemy.orm import joinedload 
+
 
 class CRUDsale:
     def __init__(self, db: AsyncSession):
@@ -228,6 +230,7 @@ class CRUDsale:
             select(Sale).options(selectinload(Sale.images)).where(Sale.id == sale_id)
         )
         return result.scalar_one_or_none()
+    
     async def get_all_sales(self):
             """ 등록된 모든 상품 조회 (이미지 포함) """
             result = await self.db.execute(
@@ -249,7 +252,7 @@ class CRUDsale:
                     "latitude": sale.location_lat,
                     "longitude": sale.location_lon
                     },
-                    expiry_date=sale.expiry_date,
+                    expirate=sale.expiry_date,
                     status=sale.status,
                     amount=sale.amount,
                     contents=sale.contents,
@@ -257,3 +260,49 @@ class CRUDsale:
                 ))
 
             return sales_list
+    from sqlalchemy.orm import joinedload
+
+    async def get_sales_by_location(self, user_lat: float, user_lon: float, radius: int = 5000):
+            """
+            특정 위치를 기준으로 반경 N km 내의 상품을 조회하는 메서드
+            - `earth_distance`를 활용하여 반경 N km 내의 상품을 필터링
+            - `joinedload(Sale.images)`를 사용하여 이미지까지 로드
+            """
+            query = (
+                select(Sale)
+                .options(joinedload(Sale.images))  # ✅ 이미지 데이터 로드 추가
+                .where(
+                    text("""
+                        earth_distance(
+                            ll_to_earth(CAST(:user_lat AS DOUBLE PRECISION), CAST(:user_lon AS DOUBLE PRECISION)),
+                            ll_to_earth(location_lat, location_lon)
+                        ) <= CAST(:radius AS DOUBLE PRECISION)
+                    """)
+                )
+            )
+            result = await self.db.execute(query, {
+                "user_lat": user_lat,
+                "user_lon": user_lon,
+                "radius": radius
+            })
+
+            sales = result.unique().scalars().all()  # ✅ 중복 데이터 제거 추가
+
+            # 🚀 SaleResponse 객체 리스트로 변환
+            return [
+                SaleResponse(
+                    id=sale.id,
+                    ingredient_id=sale.ingredient_id,
+                    ingredient_name=sale.ingredient_name,
+                    seller_id=sale.seller_id,
+                    title=sale.title,
+                    value=sale.value,
+                    location={"latitude": sale.location_lat, "longitude": sale.location_lon},
+                    expiry_date=sale.expiry_date,
+                    status=sale.status,
+                    amount=sale.amount,
+                    contents=sale.contents,
+                    images=[img.image_url for img in sale.images]  # ✅ 이미지 URL 리스트 반환
+                )
+                for sale in sales
+            ]

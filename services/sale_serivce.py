@@ -2,8 +2,13 @@ from typing import List
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from crud.crud_sale import CRUDsale
-from schemas.sale import SaleCreate
+from schemas.sale import SaleCreate, SaleImageResponse, SaleResponse
 from services.s3_service import upload_images_to_s3, delete_images_from_s3
+
+class SaleService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.sale_crud = CRUDsale(db)
 
 async def process_sale(db: AsyncSession, sale_data: SaleCreate, files: List[UploadFile]):
     image_urls = await upload_images_to_s3(files)  # ✅ S3 업로드 후 URL 리스트 반환

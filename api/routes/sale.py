@@ -5,6 +5,7 @@ from api.dependencies import get_async_db
 from schemas.sale import SaleCreate, SaleResponse
 from crud.crud_sale import CRUDsale
 from services.s3_service import delete_images_from_s3, upload_images_to_s3
+from services.sale_serivce import SaleService
 from utils.form_parser import parse_sale_form
 
 router = APIRouter()
@@ -117,3 +118,15 @@ async def get_all_sales(db: AsyncSession = Depends(get_async_db)):
     sales = await sale_service.get_all_sales()
 
     return sales
+@router.get("/sales/location", response_model=List[SaleResponse])
+async def get_sales_by_location(
+    user_lat: float,
+    user_lon: float,
+    radius: int = 1000,  # 기본 반경 5km
+    db: AsyncSession = Depends(get_async_db)
+):
+    """
+    특정 위치 기준으로 반경 N km 내 판매 상품 조회 API
+    """
+    sale_service = CRUDsale(db)
+    return await sale_service.get_sales_by_location(user_lat, user_lon, radius)
