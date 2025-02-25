@@ -52,18 +52,19 @@ class CRUDchat:
         return {"message": "새로운 채팅방이 생성되었습니다.", "room_id": chat.id}
 
 
+
     async def get_user_chats(self, user_id: int) -> list[Chat]:
-        # 특정 사용자가 참여한 모든 채팅 조회
+        """특정 사용자가 참여한 모든 채팅방 조회"""
         result = await self.db.execute(
-                select(Chat)
-                .distinct()  # 중복된 Chat 객체 제거
-                .options(joinedload(Chat.user1), joinedload(Chat.user2))
-                .filter((Chat.user1_id == user_id) | (Chat.user2_id == user_id))
-            )
+            select(Chat)
+            .distinct()  # 중복된 Chat 객체 제거
+            .options(joinedload(Chat.buyer), joinedload(Chat.seller))  # 관계 수정
+            .filter((Chat.buyer_id == user_id) | (Chat.seller_id == user_id))
+        )
         return result.scalars().unique().all()
 
     async def send_message(self, message: MessageCreate) -> Message:
-        # 메시지 저장
+        """채팅 메시지 저장"""
         new_message = Message(**message.dict())
         self.db.add(new_message)
         await self.db.commit()
