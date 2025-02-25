@@ -151,7 +151,7 @@ class Chat(Base):
 
     buyer = relationship("User", foreign_keys=[buyer_id], back_populates="chats_as_buyer", lazy="joined")
     seller = relationship("User", foreign_keys=[seller_id], back_populates="chats_as_seller", lazy="joined")
-    item = relationship("Sale", back_populates="chats")  # Sale(판매 상품)과의 관계
+    item = relationship("Sale", back_populates="chats",lazy="joined")  # Sale(판매 상품)과의 관계
     messages = relationship("Message", back_populates="chat", lazy="joined")
 
 class Message(Base):
