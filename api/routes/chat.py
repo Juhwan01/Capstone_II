@@ -19,11 +19,10 @@ async def create_chat(chat_data: ChatCreate, db: AsyncSession = Depends(get_asyn
     return ChatBase.model_validate(chat)
 
 @router.get("/chats/", response_model=list[ChatBase])
-async def get_chats(chat_query: ChatQuery, db: AsyncSession = Depends(get_async_db)):
+async def get_chats(user_id: int, db: AsyncSession = Depends(get_async_db)):
     """사용자가 참여한 모든 채팅방을 조회"""
     chat_service = CRUDchat(db)
-    return await chat_service.get_user_chats(chat_query.user_id)
-
+    return await chat_service.get_user_chats(user_id)
 
 @router.post("/messages/", response_model=MessageResponse)
 async def send_message(message: MessageCreate, db: AsyncSession = Depends(get_async_db)):
