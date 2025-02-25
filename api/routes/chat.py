@@ -25,15 +25,15 @@ async def send_message(message: MessageCreate, db: Session = Depends(get_async_d
     chat_service = CRUDchat(db)
     return await chat_service.send_message(message)
 
-# WebSocket 엔드포인트
-@router.websocket("/ws/chat")
-async def websocket_endpoint(websocket: WebSocket):
-    # 연결 수락
+@router.websocket("/ws/chat/{room_id}")
+async def chat_websocket(websocket: WebSocket, room_id: int):
+    """특정 채팅방에서 실시간 메시지 송수신"""
     await websocket.accept()
+    
     try:
         while True:
-            # 클라이언트로부터 메시지 수신
             data = await websocket.receive_text()
-            await websocket.send_text(f"Message received: {data}")
+            # 특정 채팅방에서 메시지를 보내는 경우
+            await websocket.send_text(f"Room {room_id} - Message: {data}")
     except WebSocketDisconnect:
-        print("Client disconnected")
+        print(f"채팅방 {room_id}: 클라이언트 연결 종료")
