@@ -6,9 +6,6 @@ from models.models import Chat, Message, Sale, User
 from schemas.chat import MessageCreate
 
 
-class CRUDchat:
-    def __init__(self, db: AsyncSession):
-        self.db = db
 
 class CRUDchat:
     def __init__(self, db: AsyncSession):
@@ -50,8 +47,6 @@ class CRUDchat:
         await self.db.refresh(chat)
 
         return {"message": "새로운 채팅방이 생성되었습니다.", "room_id": chat.id}
-
-
 
     async def get_user_chats(self, user_id: int) -> list[Chat]:
         """특정 사용자가 참여한 모든 채팅방 조회"""
