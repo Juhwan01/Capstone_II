@@ -144,13 +144,15 @@ class Transaction(Base):
 class Chat(Base):
     __tablename__ = "chats"
     id = Column(Integer, primary_key=True, index=True)
-    user1_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    user2_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    item_id = Column(Integer, ForeignKey("sales.id"), nullable=False)  # 상품 ID 추가
     created_at = Column(DateTime, default=func.now())
 
-    user1 = relationship("User", foreign_keys=[user1_id], back_populates="chats_as_user1", lazy="joined")
-    user2 = relationship("User", foreign_keys=[user2_id], back_populates="chats_as_user2", lazy="joined")
-    messages = relationship("Message", back_populates="chat", lazy="joined")  # 즉시 로드
+    buyer = relationship("User", foreign_keys=[buyer_id], back_populates="chats_as_buyer", lazy="joined")
+    seller = relationship("User", foreign_keys=[seller_id], back_populates="chats_as_seller", lazy="joined")
+    item = relationship("Sale", back_populates="chats")  # Sale(판매 상품)과의 관계
+    messages = relationship("Message", back_populates="chat", lazy="joined")
 
 class Message(Base):
     __tablename__ = "messages"
