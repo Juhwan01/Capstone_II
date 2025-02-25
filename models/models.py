@@ -114,10 +114,10 @@ class Sale(Base):
 
 
 
-    ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
-    seller = relationship("User", back_populates="sales")  # 관계 설정
-
-    images = relationship("Image", back_populates="sale", cascade="all, delete")
+    seller = relationship("User", back_populates="sales")  # 판매자와의 관계
+    ingredient = relationship("Ingredient", back_populates="sales")  # 식재료와의 관계
+    images = relationship("Image", back_populates="sale", cascade="all, delete")  # 판매 이미지 관계
+    chats = relationship("Chat", back_populates="item", cascade="all, delete")  # Chat과 연결됨 (새롭게 추가!)
 
 class Image(Base):
     __tablename__ = "images"
