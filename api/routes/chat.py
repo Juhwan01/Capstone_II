@@ -14,7 +14,9 @@ router = APIRouter(
 async def create_chat(chat_data: ChatCreate, db: AsyncSession = Depends(get_async_db)):
     """구매자가 채팅을 시작하면 기존 채팅방을 찾고 없으면 생성"""
     chat_service = CRUDchat(db)
-    return await chat_service.create_chat(chat_data.buyer_id, chat_data.seller_id, chat_data.item_id)
+    chat = await chat_service.create_chat(chat_data.buyer_id, chat_data.seller_id, chat_data.item_id)
+
+    return ChatBase.model_validate(chat)
 
 @router.get("/chats/", response_model=list[ChatBase])
 async def get_chats(chat_query: ChatQuery, db: AsyncSession = Depends(get_async_db)):
