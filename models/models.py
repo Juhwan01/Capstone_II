@@ -6,6 +6,7 @@ from datetime import datetime
 from db.base import Base
 from geoalchemy2 import Geometry
 
+
 class UserRole(str, Enum):
     CHEF = "셰프"
     MASTER = "요리마스터"
