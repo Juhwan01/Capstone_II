@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from models.models import Chat, Message, Sale, User
 from schemas.chat import MessageCreate
-
+from datetime import datetime
 
 
 class CRUDchat:
@@ -71,3 +71,50 @@ class CRUDchat:
         await self.db.commit()
         await self.db.refresh(new_message)
         return new_message
+    async def get_chat_messages(self, room_id: int, limit: int = 100) -> list[dict]:
+        """
+        특정 채팅방의 최근 메시지 내역을 불러오는 함수
+        
+        Args:
+            room_id: 채팅방 ID
+            limit: 불러올 메시지 개수 (기본 100개)
+            
+        Returns:
+            최근 메시지 목록 (시간순 정렬)
+        """
+        try:
+            # timestamp 필드 사용
+            query = select(Message).where(Message.chat_id == room_id).order_by(Message.timestamp).limit(limit)
+            result = await self.db.execute(query)
+            messages = result.scalars().all()
+            
+            # 메시지를 JSON 직렬화 가능한 형태로 변환
+            message_list = []
+            for msg in messages:
+                try:
+                    # None 체크만 수행
+                    timestamp_str = msg.timestamp.isoformat() if msg.timestamp else None
+                    
+                    message_list.append({
+                        "id": msg.id,
+                        "sender_id": msg.sender_id,
+                        "content": msg.content,
+                        "timestamp": timestamp_str,
+                        "chat_id": msg.chat_id
+                    })
+                except Exception as e:
+                    print(f"메시지 변환 중 오류 (메시지 ID: {msg.id}): {str(e)}")
+                    # 오류가 있는 경우 timestamp를 None으로 처리하고 계속 진행
+                    message_list.append({
+                        "id": msg.id,
+                        "sender_id": msg.sender_id,
+                        "content": msg.content,
+                        "timestamp": None,
+                        "chat_id": msg.chat_id
+                    })
+            
+            return message_list
+        except Exception as e:
+            print(f"채팅 내역 조회 중 오류: {str(e)}")
+            # 오류가 발생해도 빈 리스트 반환하여 연결이 끊어지지 않도록 함
+            return []
