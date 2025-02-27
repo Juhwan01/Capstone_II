@@ -103,18 +103,23 @@ async def get_chat_messages(db: AsyncSession, room_id: int, limit: int = 100) ->
 @router.websocket("/ws/chat/{room_id}")
 async def chat_websocket(websocket: WebSocket, room_id: int, db: AsyncSession = Depends(get_async_db)):
     """특정 채팅방에서 실시간 메시지 송수신"""
+    print(f"웹소켓 연결 시도: 채팅방 {room_id}")
+    
     # 먼저 연결을 수락
     await websocket.accept()
+    print(f"웹소켓 연결 수락됨: 채팅방 {room_id}")
     
     # 쿼리 파라미터에서 토큰 추출
     token = websocket.query_params.get("token")
     
     if not token:
+        print(f"토큰 없음: 채팅방 {room_id}")
         await websocket.close()
         return
     
     try:
         # 토큰 검증
+        print(f"토큰 검증 시작: 채팅방 {room_id}")
         payload = jwt.decode(
             token, 
             settings.SECRET_KEY, 
@@ -122,63 +127,88 @@ async def chat_websocket(websocket: WebSocket, room_id: int, db: AsyncSession = 
         )
         email = payload.get("sub")
         user_id = payload.get("user_id")  # 토큰에 user_id가 포함되어 있다고 가정
+        print(f"토큰 검증 완료: 채팅방 {room_id}, 사용자 ID: {user_id}, 이메일: {email}")
         
         # 토큰 만료 확인
         if datetime.fromtimestamp(payload.get("exp")) < datetime.utcnow():
+            print(f"토큰 만료됨: 채팅방 {room_id}")
             await websocket.close()
             return
             
         if not email or not user_id:
+            print(f"이메일 또는 사용자 ID 없음: 채팅방 {room_id}")
             await websocket.close()
             return
         
         # 채팅 서비스 인스턴스 생성
+        print(f"채팅 서비스 인스턴스 생성: 채팅방 {room_id}")
         chat_service = CRUDchat(db)
         
-        # 이전 채팅 내역 불러오기 (별도 함수 사용)
-        chat_history = await get_chat_messages(db, room_id)
-        
-        # 이전 채팅 내역을 먼저 클라이언트에게 전송
-        history_data = {
-            "type": "history",
-            "messages": chat_history
-        }
-        await websocket.send_text(json.dumps(history_data))
-        
-        # 매니저에 연결 추가 (이메일 정보도 함께 저장)
-        await manager.connect(room_id, websocket, email)
-        
         try:
-            while True:
-                # 클라이언트로부터 메시지 수신
-                data = await websocket.receive_text()
-                
-                # JSON 형태로 데이터가 오는 경우 파싱하여 처리
-                try:
-                    message_data = json.loads(data)
-                    
-                    # 메시지 타입이 'chat'인 경우 데이터베이스에 저장
-                    if message_data.get("type") == "chat":
-                        # 데이터베이스에 메시지 저장
-                        message_create = MessageCreate(
-                            content=message_data.get("content"),
-                            sender_id=user_id,
-                            chat_id=room_id
-                            # timestamp는 DB에서 자동으로 설정됨
-                        )
-                        await chat_service.send_message(message_create)
-                    
-                    # 메시지를 발신자를 제외한 모든 사용자에게 전달
-                    await manager.broadcast(room_id, data, email)
-                    
-                except json.JSONDecodeError:
-                    # 일반 텍스트인 경우 그대로 전달
-                    await manager.broadcast(room_id, data, email)
-                
-        except WebSocketDisconnect:
-            # 연결 종료 시 매니저에서 제거
-            manager.disconnect(room_id, websocket)
-            print(f"채팅방 {room_id}: 클라이언트 연결 종료")
+            # 이전 채팅 내역 불러오기 (별도 함수 사용)
+            print(f"채팅 내역 로드 시작: 채팅방 {room_id}")
+            chat_history = await get_chat_messages(db, room_id)
+            print(f"채팅 내역 로드 완료: 채팅방 {room_id}, 메시지 수: {len(chat_history)}")
             
-    except JWTError:
+            # 이전 채팅 내역을 먼저 클라이언트에게 전송
+            history_data = {
+                "type": "history",
+                "messages": chat_history
+            }
+            await websocket.send_text(json.dumps(history_data))
+            print(f"채팅 내역 전송 완료: 채팅방 {room_id}")
+            
+            # 매니저에 연결 추가 (이메일 정보도 함께 저장)
+            await manager.connect(room_id, websocket, email)
+            print(f"연결 매니저에 추가됨: 채팅방 {room_id}, 사용자: {email}")
+            
+            try:
+                while True:
+                    # 클라이언트로부터 메시지 수신
+                    print(f"메시지 수신 대기 중: 채팅방 {room_id}")
+                    data = await websocket.receive_text()
+                    print(f"메시지 수신됨: 채팅방 {room_id}, 데이터: {data[:50]}...")
+                    
+                    # JSON 형태로 데이터가 오는 경우 파싱하여 처리
+                    try:
+                        message_data = json.loads(data)
+                        
+                        # 메시지 타입이 'chat'인 경우 데이터베이스에 저장
+                        if message_data.get("type") == "chat":
+                            print(f"채팅 메시지 저장 시작: 채팅방 {room_id}")
+                            # 데이터베이스에 메시지 저장
+                            message_create = MessageCreate(
+                                content=message_data.get("content"),
+                                sender_id=user_id,
+                                chat_id=room_id
+                                # timestamp는 DB에서 자동으로 설정됨
+                            )
+                            saved_message = await chat_service.send_message(message_create)
+                            print(f"채팅 메시지 저장 완료: 채팅방 {room_id}, 메시지 ID: {saved_message.id}")
+                        
+                        # 메시지를 발신자를 제외한 모든 사용자에게 전달
+                        print(f"메시지 브로드캐스트 시작: 채팅방 {room_id}")
+                        await manager.broadcast(room_id, data, email)
+                        print(f"메시지 브로드캐스트 완료: 채팅방 {room_id}")
+                        
+                    except json.JSONDecodeError as e:
+                        print(f"JSON 파싱 오류: 채팅방 {room_id}, 오류: {str(e)}")
+                        # 일반 텍스트인 경우 그대로 전달
+                        await manager.broadcast(room_id, data, email)
+                    
+            except WebSocketDisconnect:
+                # 연결 종료 시 매니저에서 제거
+                print(f"웹소켓 연결 종료됨: 채팅방 {room_id}")
+                manager.disconnect(room_id, websocket)
+                print(f"채팅방 {room_id}: 클라이언트 연결 종료")
+        
+        except Exception as e:
+            print(f"채팅 처리 중 오류 발생: 채팅방 {room_id}, 오류: {str(e)}")
+            await websocket.close()
+                
+    except JWTError as e:
+        print(f"JWT 오류: 채팅방 {room_id}, 오류: {str(e)}")
+        await websocket.close()
+    except Exception as e:
+        print(f"예상치 못한 오류: 채팅방 {room_id}, 오류: {str(e)}")
         await websocket.close()
