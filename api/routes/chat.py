@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from crud.crud_chat import CRUDchat
@@ -16,28 +17,33 @@ router = APIRouter(
 class ConnectionManager:
     def __init__(self):
         # room_id를 키로 사용하여 각 채팅방의 연결을 저장
-        self.active_connections: dict[int, list[WebSocket]] = {}
-
-    async def connect(self, room_id: int, websocket: WebSocket):
+        self.active_connections: dict[int, list[tuple[WebSocket, str]]] = {}
+    
+    async def connect(self, room_id: int, websocket: WebSocket, user_email: str):
         if room_id not in self.active_connections:
             self.active_connections[room_id] = []
-        self.active_connections[room_id].append(websocket)
-
+        self.active_connections[room_id].append((websocket, user_email))
+    
     def disconnect(self, room_id: int, websocket: WebSocket):
         if room_id in self.active_connections:
             # 해당 웹소켓 연결 찾아서 제거
             self.active_connections[room_id] = [
                 conn for conn in self.active_connections[room_id] 
-                if conn != websocket
+                if conn[0] != websocket
             ]
             # 채팅방에 아무도 없으면 채팅방 제거
             if not self.active_connections[room_id]:
                 del self.active_connections[room_id]
 
-    async def broadcast(self, room_id: int, message: str):
+    async def broadcast(self, room_id: int, message: str, sender_email: str):
+        """
+        메시지를 보낸 사용자를 제외한 모든 연결된 클라이언트에게 메시지 전송
+        """
         if room_id in self.active_connections:
-            for connection in self.active_connections[room_id]:
-                await connection.send_text(message)
+            for connection, user_email in self.active_connections[room_id]:
+                # 발신자를 제외한 사용자에게만 메시지 전송
+                if user_email != sender_email:
+                    await connection.send_text(message)
 
 # 매니저 인스턴스 생성
 manager = ConnectionManager()
@@ -93,15 +99,23 @@ async def chat_websocket(websocket: WebSocket, room_id: int):
             await websocket.close()
             return
         
-        # 매니저에 연결 추가
-        await manager.connect(room_id, websocket)
+        # 매니저에 연결 추가 (이메일 정보도 함께 저장)
+        await manager.connect(room_id, websocket, email)
         
         try:
             while True:
                 # 클라이언트로부터 메시지 수신
                 data = await websocket.receive_text()
-                # 메시지를 그대로 전달 (수정 없이)
-                await manager.broadcast(room_id, data)
+                
+                # JSON 형태로 데이터가 오는 경우 파싱하여 처리
+                try:
+                    message_data = json.loads(data)
+                    # 메시지를 발신자를 제외한 모든 사용자에게 전달
+                    await manager.broadcast(room_id, data, email)
+                except json.JSONDecodeError:
+                    # 일반 텍스트인 경우 그대로 전달
+                    await manager.broadcast(room_id, data, email)
+                
         except WebSocketDisconnect:
             # 연결 종료 시 매니저에서 제거
             manager.disconnect(room_id, websocket)
