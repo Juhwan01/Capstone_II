@@ -94,14 +94,14 @@ class Ingredient(Base):
     amount = Column(Integer , nullable= False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
 
-    requests = relationship("IngredientRequest", back_populates="ingredient", cascade="all, delete-orphan")
-    sales = relationship("Sale", back_populates="ingredient", cascade="all, delete-orphan")
+    requests = relationship("IngredientRequest", back_populates="ingredient")
+    sales = relationship("Sale", back_populates="ingredient")
 
 class Sale(Base):
     __tablename__ = 'sales'
     id = Column(Integer, primary_key=True, autoincrement=True)  # 판매 고유 ID
     ingredient_name = Column(String)
-    ingredient_id = Column(Integer, ForeignKey('ingredients.id'), nullable=False)  # 식재료 ID (Foreign Key)
+    ingredient_id = Column(Integer, ForeignKey('ingredients.id'), nullable=True, default=None)  # 식재료 ID (Foreign Key)
     seller_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # 판매자 ID (Foreign Key)
     value = Column(Float, nullable=False)  # 판매 가격
     location_lat = Column(Float, nullable=False)  # 판매 위치 위도
@@ -112,11 +112,8 @@ class Sale(Base):
     contents = Column(String , nullable= False ) # 내용 추가
     amount = Column(Integer, nullable=False)
 
-
-
     ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
     seller = relationship("User", back_populates="sales")  # 관계 설정
-
     images = relationship("Image", back_populates="sale", cascade="all, delete")
 
 class Image(Base):
@@ -133,7 +130,7 @@ class Transaction(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     buyer_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    sale_id = Column(Integer, ForeignKey('sales.id'), nullable=False)
+    sale_id = Column(Integer, ForeignKey('sales.id'), nullable=True)
     appointment_time = Column(DateTime, nullable=False)
     seller_time = Column(DateTime, nullable=True)
     buyer_time = Column(DateTime, nullable=True)
