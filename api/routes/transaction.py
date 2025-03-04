@@ -22,9 +22,14 @@ async def arrive(payload:ArriveDTO, db=Depends(get_async_db)):
 @router.post("/success")
 async def success(payload:StatusDTO,db=Depends(get_async_db)):
     crud = CRUDtransaction(session=db)
-    return await crud.success(trans_id=payload.trans_id)
+    return await crud.success(sale_id=payload.sale_id)
 
 @router.post("/cancel")
 async def cancel(payload:StatusDTO,db=Depends(get_async_db)):
     crud = CRUDtransaction(session=db)
-    return await crud.cancel(trans_id=payload.trans_id)
+    return await crud.cancel(sale_id=payload.sale_id)
+
+@router.get("/get_trans")
+async def get_transaction(sale_id: int, db=Depends(get_async_db)):
+    crud = CRUDtransaction(session=db)
+    return await crud.get_transaction(sale_id=sale_id)

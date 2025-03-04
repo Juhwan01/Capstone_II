@@ -1,5 +1,5 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean, DateTime, Numeric, Enum as SQLAlchemyEnum, func, Text
+from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean, DateTime, Numeric, Enum as SQLAlchemyEnum, func, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
@@ -138,9 +138,13 @@ class Transaction(Base):
     appointment_time = Column(DateTime, nullable=False)
     seller_time = Column(DateTime, nullable=True)
     buyer_time = Column(DateTime, nullable=True)
-    
+    status = Column(String(50), default='Trading')
+
     buyer = relationship('User', foreign_keys=[buyer_id], backref='bought_transactions')
     request = relationship('Sale', backref='transactions')
+    __table_args__ = (
+        UniqueConstraint('sale_id', 'status', name='uq_sale_status'),
+    )
 
 class Chat(Base):
     __tablename__ = "chats"
