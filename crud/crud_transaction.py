@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, and_
 from geoalchemy2.elements import WKTElement
 from schemas.transaction import (TransDTO, ArriveDTO)
 from models.models import Sale, Transaction, User, Ingredient
@@ -30,7 +30,7 @@ class CRUDtransaction:
         return new_trans
     
     async def arrive(self, payload:ArriveDTO):
-        trans_result = await self._session.execute(select(Transaction).filter_by(id=payload.trans_id))
+        trans_result = await self._session.execute(select(Transaction).filter(and_(Transaction.sale_id == payload.sale_id, Transaction.status == "Trading")))
         trans = trans_result.scalars().first()
         if not trans:
             return 1
@@ -62,11 +62,11 @@ class CRUDtransaction:
         else:
             return {"error":"거리가 인증이 되지 않습니다."}
         
-    async def success(self, trans_id: int):
-        result = await self._session.execute(select(Transaction).filter_by(id=trans_id))
+    async def success(self, sale_id: int):
+        result = await self._session.execute(select(Transaction).filter(and_(Transaction.sale_id == sale_id, Transaction.status == "Trading")))
         transaction = result.scalars().first()
-        
         if transaction and transaction.buyer_time and transaction.seller_time:
+            transaction.status = "Complete"
             ap_time = transaction.appointment_time
             by_time = transaction.buyer_time
             sl_time = transaction.seller_time
@@ -97,10 +97,11 @@ class CRUDtransaction:
                 return 0
         return -1
     
-    async def cancel(self, trans_id: int):
-        result = await self._session.execute(select(Transaction).filter_by(id=trans_id))
+    async def cancel(self, sale_id: int):
+        result = await self._session.execute(select(Transaction).filter(and_(Transaction.sale_id == sale_id, Transaction.status == "Trading")))
         transaction = result.scalars().first()
         if transaction:
+            transaction.status = "Cancel"
             sale_id = transaction.sale_id
             sale_result = await self._session.execute(select(Sale).filter_by(id=sale_id))
             sale = sale_result.scalars().first()
@@ -132,3 +133,7 @@ class CRUDtransaction:
                 return{"아직 약속시간 안에 있습니다."}
         else:
             return -1
+
+    async def get_transaction(self, sale_id: int):
+        trans_result = await self._session.execute(select(Transaction).filter(and_(Transaction.sale_id == sale_id, Transaction.status == "Trading")))
+        return trans_result.scalar_one_or_none()
