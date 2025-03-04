@@ -48,7 +48,7 @@ class CRUDtransaction:
         )
         distance = distance_result.scalar()
         print(distance)
-        if distance <= 10:
+        if distance <= 100:
             if sale.seller_id == payload.id:
                 trans.seller_time = datetime.now()
                 await self._session.commit()

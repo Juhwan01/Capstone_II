@@ -6,6 +6,7 @@ from datetime import datetime
 from db.base import Base
 from geoalchemy2 import Geometry
 
+
 class UserRole(str, Enum):
     CHEF = "셰프"
     MASTER = "요리마스터"
@@ -34,8 +35,8 @@ class User(Base):
     recipes = relationship("Recipe", back_populates="creator")
     q_values = relationship("QValue", back_populates="user")
     requests = relationship("IngredientRequest", back_populates="user", cascade="all, delete-orphan")
-    chats_as_user1 = relationship("Chat", foreign_keys="[Chat.user1_id]", back_populates="user1")
-    chats_as_user2 = relationship("Chat", foreign_keys="[Chat.user2_id]", back_populates="user2")
+    chats_as_buyer = relationship("Chat", foreign_keys="[Chat.buyer_id]", back_populates="buyer")
+    chats_as_seller = relationship("Chat", foreign_keys="[Chat.seller_id]", back_populates="seller")
     sales = relationship("Sale", back_populates="seller", cascade="all, delete-orphan")
     group_purchases = relationship("GroupPurchase", back_populates="creator", lazy="dynamic")
     group_purchase_participations = relationship("GroupPurchaseParticipant", back_populates="user", lazy="dynamic")  
@@ -111,10 +112,11 @@ class Sale(Base):
     expiry_date = Column(DateTime, nullable=False)
     contents = Column(String , nullable= False ) # 내용 추가
     amount = Column(Integer, nullable=False)
-
-    ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
-    seller = relationship("User", back_populates="sales")  # 관계 설정
-    images = relationship("Image", back_populates="sale", cascade="all, delete")
+    
+    seller = relationship("User", back_populates="sales")  # 판매자와의 관계
+    ingredient = relationship("Ingredient", back_populates="sales")  # 식재료와의 관계
+    images = relationship("Image", back_populates="sale", cascade="all, delete")  # 판매 이미지 관계
+    chats = relationship("Chat", back_populates="item", cascade="all, delete")  # Chat과 연결됨 (새롭게 추가!)
 
 class Image(Base):
     __tablename__ = "images"
@@ -141,13 +143,15 @@ class Transaction(Base):
 class Chat(Base):
     __tablename__ = "chats"
     id = Column(Integer, primary_key=True, index=True)
-    user1_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    user2_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    item_id = Column(Integer, ForeignKey("sales.id"), nullable=False)  # 상품 ID 추가
     created_at = Column(DateTime, default=func.now())
 
-    user1 = relationship("User", foreign_keys=[user1_id], back_populates="chats_as_user1", lazy="joined")
-    user2 = relationship("User", foreign_keys=[user2_id], back_populates="chats_as_user2", lazy="joined")
-    messages = relationship("Message", back_populates="chat", lazy="joined")  # 즉시 로드
+    buyer = relationship("User", foreign_keys=[buyer_id], back_populates="chats_as_buyer", lazy="joined")
+    seller = relationship("User", foreign_keys=[seller_id], back_populates="chats_as_seller", lazy="joined")
+    item = relationship("Sale", back_populates="chats",lazy="joined")  # Sale(판매 상품)과의 관계
+    messages = relationship("Message", back_populates="chat", lazy="joined")
 
 class Message(Base):
     __tablename__ = "messages"
