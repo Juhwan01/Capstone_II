@@ -3,7 +3,7 @@ from sqlalchemy.future import select
 from sqlalchemy.sql import func
 from geoalchemy2.elements import WKTElement
 from schemas.transaction import (TransDTO, ArriveDTO)
-from models.models import Sale, Transaction, User
+from models.models import Sale, Transaction, User, Ingredient
 from geoalchemy2 import Geometry
 from geoalchemy2.functions import ST_GeomFromEWKT
 from datetime import datetime, timedelta
@@ -83,6 +83,16 @@ class CRUDtransaction:
                 seller = seller_result.scalar_one()
                 if sl_time and sl_time <= ap_time:
                     seller.trust_score += 0.5
+                ingred_id = sale.ingredient_id
+                ingred = await self._session.execute(select(Ingredient).filter_by(id=ingred_id))
+                ingred_data = ingred.scalar_one_or_none()
+                print(ingred_data.amount)
+                if ingred_data.amount == 0:
+                    await self._session.delete(ingred_data)
+                    sale.ingredient_id = None
+                print(sale.id)
+                print(transaction.id)
+                print(transaction.sale_id)
                 await self._session.commit()
                 return 0
         return -1
