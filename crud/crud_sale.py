@@ -241,23 +241,19 @@ class CRUDsale:
             # ✅ SaleResponse 형식으로 변환
             sales_list = []
             for sale in sales:
-                    sales_list.append(SaleResponse(
-                    id=sale.id,
-                    ingredient_id=sale.ingredient_id,
-                    ingredient_name=sale.ingredient_name,
-                    seller_id=sale.seller_id,
-                    title=sale.title,
-                    value=sale.value,
-                    location={  # ✅ location 필드 추가
-                    "latitude": sale.location_lat,
-                    "longitude": sale.location_lon
-                    },
-                    expirate=sale.expiry_date,
-                    status=sale.status,
-                    amount=sale.amount,
-                    contents=sale.contents,
-                    images=[SaleImageResponse(image_url=img.image_url) for img in sale.images]
-                ))
+                        sales_list.append(SaleResponse(
+                        id=sale.id,
+                        ingredient_id=sale.ingredient_id,
+                        ingredient_name=sale.ingredient_name,
+                        title=sale.title,
+                        seller_id=sale.seller_id,
+                        value=sale.value,
+                        location={"lat": sale.location_lat, "lon": sale.location_lon},
+                        expiry_date=sale.expiry_date,  # 누락된 필드 추가
+                        status=sale.status,
+                        images=[image.image_url for image in sale.images],  # 문자열 URL만 추출
+                        contents=sale.contents
+    ))
             return sales_list
     from sqlalchemy.orm import joinedload
 
