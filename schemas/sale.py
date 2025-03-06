@@ -23,7 +23,7 @@ class Config:
 
 class SaleResponse(BaseModel):
     id: int
-    ingredient_id: int = None
+    ingredient_id: Optional[int] = None
     ingredient_name : str
     title : str
     seller_id: int
