@@ -241,7 +241,6 @@ class CRUDsale:
             # ✅ SaleResponse 형식으로 변환
             sales_list = []
             for sale in sales:
-                if sale.ingredient_id != None:
                     sales_list.append(SaleResponse(
                     id=sale.id,
                     ingredient_id=sale.ingredient_id,
