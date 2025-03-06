@@ -241,7 +241,8 @@ class CRUDsale:
             # ✅ SaleResponse 형식으로 변환
             sales_list = []
             for sale in sales:
-                sales_list.append(SaleResponse(
+                if sale.ingredient_id != None:
+                    sales_list.append(SaleResponse(
                     id=sale.id,
                     ingredient_id=sale.ingredient_id,
                     ingredient_name=sale.ingredient_name,
@@ -258,7 +259,6 @@ class CRUDsale:
                     contents=sale.contents,
                     images=[SaleImageResponse(image_url=img.image_url) for img in sale.images]
                 ))
-
             return sales_list
     from sqlalchemy.orm import joinedload
 
