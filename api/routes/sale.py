@@ -10,7 +10,7 @@ from utils.form_parser import parse_sale_form
 
 router = APIRouter()
 
-@router.post("/sales/", response_model=SaleResponse)
+@router.post("/sales", response_model=SaleResponse)
 async def create_sale(
     sale_data: SaleCreate = Depends(parse_sale_form),
     files: Optional[List[UploadFile]] = File(None),
@@ -109,7 +109,7 @@ async def update_sale(
     return update_result
 
 
-@router.get("/sales/", response_model=List[SaleResponse])
+@router.get("/sales", response_model=List[SaleResponse])
 async def get_all_sales(db: AsyncSession = Depends(get_async_db)):
     """
     모든 판매 상품 조회 API
