@@ -21,15 +21,11 @@ class RecipeRecommender:
     def calculate_ingredient_match_score(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema
     ) -> float:
-        """재료 매칭 점수 계산"""
+        """텍스트 유사도 기반 재료 매칭 점수 계산"""
         try:
-            # 사용자 재료를 dictionary 형태로 변환
-            user_ingredients = {item.name: item.amount for item in user_profile.owned_ingredients}
-            
-            # 재료 매퍼를 통한 매칭 점수 계산
             return self.ingredient_mapper.calculate_ingredient_match_score(
                 recipe.ingredients, 
-                user_ingredients
+                user_profile.owned_ingredients
             )
         except Exception as e:
             print(f"재료 매칭 점수 계산 오류: {e}")
@@ -38,14 +34,11 @@ class RecipeRecommender:
     def can_cook(
         self, recipe: RecipeSchema, user_profile: UserProfileSchema
     ) -> bool:
-        """요리 가능 여부 확인"""
+        """텍스트 유사도 기반 요리 가능 여부 확인"""
         try:
-            # 사용자 재료를 dictionary 형태로 변환
-            user_ingredients = {item.name: item.amount for item in user_profile.owned_ingredients}
-            
             return self.ingredient_mapper.can_cook(
                 recipe.ingredients,
-                user_ingredients
+                user_profile.owned_ingredients
             )
         except Exception as e:
             print(f"요리 가능 여부 확인 오류: {e}")
@@ -133,6 +126,22 @@ class RecipeRecommender:
         if not user_profile:
             return []
 
+        # 데이터 구조 변환: 리스트 형태의 재료를 딕셔너리로 변환
+        user_profile_dict = user_profile.__dict__.copy()
+        if '_sa_instance_state' in user_profile_dict:
+            del user_profile_dict['_sa_instance_state']
+        
+        # owned_ingredients 구조 변환
+        converted_ingredients = {}
+        if isinstance(user_profile.owned_ingredients, list):
+            for item in user_profile.owned_ingredients:
+                if isinstance(item, dict) and 'name' in item and 'amount' in item:
+                    converted_ingredients[item['name']] = item['amount']
+            user_profile_dict['owned_ingredients'] = converted_ingredients
+        
+        # 변환된 데이터로 Pydantic 모델 생성
+        converted_profile = UserProfileSchema.model_validate(user_profile_dict)
+
         # Get all recipes
         result = await db.execute(select(Recipe))
         recipes = result.scalars().all()
@@ -147,35 +156,23 @@ class RecipeRecommender:
         recipe_scores = []
         for recipe in recipes:
             try:
-                # 재료 매칭 정보 계산
-                mapped_recipe = self.ingredient_mapper.map_ingredients(recipe.ingredients)
-                mapped_owned = self.ingredient_mapper.map_ingredients(user_profile.owned_ingredients)
-                
-                # 영양소 매칭 정보
-                nutrition_match = {}
-                if hasattr(user_profile, 'nutrition_limits') and user_profile.nutrition_limits:
-                    limits = user_profile.nutrition_limits
-                    if recipe.calories and limits.get('max_calories'):
-                        nutrition_match['calories'] = recipe.calories / limits['max_calories']
-                    if recipe.carbs and limits.get('max_carbs'):
-                        nutrition_match['carbs'] = float(recipe.carbs) / float(limits['max_carbs'])
-                    if recipe.protein and limits.get('max_protein'):
-                        nutrition_match['protein'] = float(recipe.protein) / float(limits['max_protein'])
-                    if recipe.fat and limits.get('max_fat'):
-                        nutrition_match['fat'] = float(recipe.fat) / float(limits['max_fat'])
-                    if recipe.sodium and limits.get('max_sodium'):
-                        nutrition_match['sodium'] = float(recipe.sodium) / float(limits['max_sodium'])
+                recipe_dict = recipe.__dict__.copy()
+                if '_sa_instance_state' in recipe_dict:
+                    del recipe_dict['_sa_instance_state']
                 
                 # 레시피 점수 계산
                 score = self.calculate_recipe_score(
-                    RecipeSchema.model_validate(recipe),
-                    UserProfileSchema.model_validate(user_profile),
+                    RecipeSchema.model_validate(recipe_dict),
+                    converted_profile,
                     q_values.get(recipe.id, 0)
                 )
                 
+                # 영양소 매칭 정보
+                nutrition_match = {}
+                
                 recipe_scores.append((recipe, score, nutrition_match))
             except Exception as e:
-                print(f"레시피 점수 계산 오류 ({recipe.name}): {e}")
+                print(f"레시피 점수 계산 오류 ({getattr(recipe, 'name', 'unknown')}): {e}")
                 continue
 
         # Sort by score

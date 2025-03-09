@@ -3,11 +3,6 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from .recipes import Recipe
 
-# 재료 아이템 스키마
-class IngredientItem(BaseModel):
-    name: str
-    amount: float
-
 # 영양소 제한 스키마
 class NutritionLimits(BaseModel):
     max_calories: Optional[int] = Field(None, ge=0, description="최대 칼로리 제한")
@@ -18,8 +13,8 @@ class NutritionLimits(BaseModel):
 
 # 기본 사용자 프로필 스키마
 class UserProfileBase(BaseModel):
-    owned_ingredients: List[IngredientItem] = Field(
-        default_factory=list,
+    owned_ingredients: Dict[str, List[Union[str,int]]] = Field(
+        default={},
         description="보유 중인 재료 목록"
     )
     nutrition_limits: NutritionLimits = Field(
@@ -33,7 +28,7 @@ class UserProfileCreate(UserProfileBase):
 
 # 사용자 프로필 업데이트 스키마
 class UserProfileUpdate(BaseModel):
-    owned_ingredients: Optional[List[IngredientItem]] = None
+    owned_ingredients: Optional[Dict[str, List[Union[str,int]]]] = None
     nutrition_limits: Optional[NutritionLimits] = None
 
 # 사용자 프로필 응답 스키마
