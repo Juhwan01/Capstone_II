@@ -11,15 +11,10 @@ class NutritionLimits(BaseModel):
     max_fat: Optional[float] = Field(None, ge=0, description="최대 지방 제한(g)")
     max_sodium: Optional[float] = Field(None, ge=0, description="최대 나트륨 제한(g)")
 
-# 재료 아이템 스키마
-class IngredientItem(BaseModel):
-    name: str
-    amount: float
-
 # 기본 사용자 프로필 스키마
 class UserProfileBase(BaseModel):
-    owned_ingredients: List[IngredientItem] = Field(
-        default_factory=list,
+    owned_ingredients: Dict[str, List[Union[str,int]]] = Field(
+        default={},
         description="보유 중인 재료 목록"
     )
     nutrition_limits: NutritionLimits = Field(
