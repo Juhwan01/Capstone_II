@@ -24,32 +24,22 @@ async def read_user_me(
     """Get current user"""
     return current_user
 
-@router.get("/me/profile", response_model=None)  # response_model을 None으로 변경
+@router.get("/me/profile", response_model=UserProfile)
 async def get_my_profile(
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Get current user's profile"""
-    profile = await crud_user.get_profile(db=db, user_id=current_user.id)
+    profile = await crud_user.user.get_profile(
+        db=db,
+        user_id=current_user.id
+    )
     if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    
-    # 직접 응답 구성
-    # JSON 직렬화 가능한 사전으로 변환
-    profile_dict = {
-        "id": profile.id,
-        "user_id": profile.user_id,
-        "nutrition_limits": profile.nutrition_limits or {},
-        "recipe_history": profile.recipe_history or [],
-        "ratings": profile.ratings or {},
-        "created_at": profile.created_at,
-        "updated_at": profile.updated_at,
-        
-        # 원래 구조 그대로 반환 (프론트엔드와 호환성 유지)
-        "owned_ingredients": profile.owned_ingredients
-    }
-    
-    return profile_dict
+        raise HTTPException(
+            status_code=404,
+            detail="Profile not found"
+        )
+    return profile
 
 @router.put("/me/profile", response_model=UserProfile)
 async def update_my_profile(
