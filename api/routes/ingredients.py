@@ -1,13 +1,44 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from api.dependencies import get_async_db, get_current_user
+from api.dependencies import get_async_db, get_current_active_user, get_current_user
+from models.models import Ingredient
+from schemas.auth import User
 from services.ingredient_matcher import IngredientMatcher
 from crud.crud_ingredient import CRUDIngredient
-from schemas.ingredient import IngredientCreate, IngredientUpdate
-from typing import List
+from schemas.ingredient import IngredientCreate, IngredientUpdate, UserIngredientsResponse
+from typing import List, Optional
 
 
 router = APIRouter(prefix="/ingredients", tags=["Ingredients"])
+
+@router.get("/my", response_model=List[UserIngredientsResponse])
+async def get_my_ingredients(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
+    category: Optional[str] = None,  # 카테고리로 필터링
+    sort_by: Optional[str] = 'expiry_date',  # 정렬 기준
+    ascending: bool = True  # 정렬 방향
+):
+    """현재 사용자의 식재료 조회 (필터링 및 정렬 지원)"""
+    query = select(Ingredient).where(Ingredient.user_id == current_user.id)
+    
+    # 카테고리 필터링
+    if category:
+        query = query.where(Ingredient.category == category)
+    
+    # 정렬
+    if sort_by == 'expiry_date':
+        query = query.order_by(Ingredient.expiry_date.asc() if ascending else Ingredient.expiry_date.desc())
+    elif sort_by == 'name':
+        query = query.order_by(Ingredient.name.asc() if ascending else Ingredient.name.desc())
+    elif sort_by == 'amount':
+        query = query.order_by(Ingredient.amount.asc() if ascending else Ingredient.amount.desc())
+    
+    result = await db.execute(query)
+    ingredients = result.scalars().all()
+    
+    return ingredients
 
 @router.get("/{name}")
 async def get_matches(name : str , db: AsyncSession = Depends(get_async_db)):

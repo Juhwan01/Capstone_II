@@ -23,3 +23,13 @@ class IngredientUpdate(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class UserIngredientsResponse(BaseModel):
+    id: int
+    name: str
+    category: str
+    amount: int
+    expiry_date: datetime
+
+    class Config:
+        from_attributes = True
