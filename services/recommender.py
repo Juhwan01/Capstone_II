@@ -2,7 +2,7 @@ from typing import List, Dict
 import random
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models.models import Recipe, UserProfile, QValue
+from models.models import Recipe, UserProfile, QValue, Ingredient
 from schemas.recipes import Recipe as RecipeSchema
 from schemas.users import UserProfile as UserProfileSchema
 from schemas.users import RecommendationResponse
@@ -19,26 +19,26 @@ class RecipeRecommender:
         )
 
     def calculate_ingredient_match_score(
-        self, recipe: RecipeSchema, user_profile: UserProfileSchema
+        self, recipe: RecipeSchema, user_ingredients: Dict[str, float]
     ) -> float:
         """텍스트 유사도 기반 재료 매칭 점수 계산"""
         try:
             return self.ingredient_mapper.calculate_ingredient_match_score(
                 recipe.ingredients, 
-                user_profile.owned_ingredients
+                user_ingredients
             )
         except Exception as e:
             print(f"재료 매칭 점수 계산 오류: {e}")
             return 0.0
 
     def can_cook(
-        self, recipe: RecipeSchema, user_profile: UserProfileSchema
+        self, recipe: RecipeSchema, user_ingredients: Dict[str, float]
     ) -> bool:
         """텍스트 유사도 기반 요리 가능 여부 확인"""
         try:
             return self.ingredient_mapper.can_cook(
                 recipe.ingredients,
-                user_profile.owned_ingredients
+                user_ingredients
             )
         except Exception as e:
             print(f"요리 가능 여부 확인 오류: {e}")
@@ -85,7 +85,8 @@ class RecipeRecommender:
         return sum(scores) / len(scores) if scores else 1.0
 
     def calculate_recipe_score(
-        self, recipe: RecipeSchema, user_profile: UserProfileSchema, q_value: float
+        self, recipe: RecipeSchema, user_ingredients: Dict[str, float], 
+        user_profile: UserProfileSchema, q_value: float
     ) -> float:
         """전체 레시피 점수 계산"""
         # 초기 사용자일 경우의 처리
@@ -97,7 +98,7 @@ class RecipeRecommender:
             return 0.0  # 영양소 제한 초과시 추천하지 않음
             
         # 재료 매칭 점수
-        ingredient_score = self.calculate_ingredient_match_score(recipe, user_profile)
+        ingredient_score = self.calculate_ingredient_match_score(recipe, user_ingredients)
         
         # 새로운 사용자의 경우 다양성을 위한 랜덤 요소 추가
         if is_new_user:
@@ -118,6 +119,15 @@ class RecipeRecommender:
         self, db: AsyncSession, user_id: int
     ) -> List[RecommendationResponse]:
         """추천 레시피 조회"""
+        # Ingredient 테이블에서 사용자 재료 조회
+        ingredient_result = await db.execute(
+            select(Ingredient).where(Ingredient.user_id == user_id)
+        )
+        user_ingredients = {
+            ingredient.name: ingredient.amount 
+            for ingredient in ingredient_result.scalars().all()
+        }
+
         # Get user profile
         result = await db.execute(
             select(UserProfile).where(UserProfile.user_id == user_id)
@@ -142,7 +152,7 @@ class RecipeRecommender:
             try:
                 # 재료 매칭 정보 계산
                 mapped_recipe = self.ingredient_mapper.map_ingredients(recipe.ingredients)
-                mapped_owned = self.ingredient_mapper.map_ingredients(user_profile.owned_ingredients)
+                mapped_owned = self.ingredient_mapper.map_ingredients(user_ingredients)
                 
                 # 영양소 매칭 정보
                 nutrition_match = {}
@@ -162,6 +172,7 @@ class RecipeRecommender:
                 # 레시피 점수 계산
                 score = self.calculate_recipe_score(
                     RecipeSchema.model_validate(recipe),
+                    user_ingredients,  # 변경된 부분
                     UserProfileSchema.model_validate(user_profile),
                     q_values.get(recipe.id, 0)
                 )

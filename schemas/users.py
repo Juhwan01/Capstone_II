@@ -13,10 +13,6 @@ class NutritionLimits(BaseModel):
 
 # 기본 사용자 프로필 스키마
 class UserProfileBase(BaseModel):
-    owned_ingredients: Dict[str, List[Union[str,int]]] = Field(
-        default={},
-        description="보유 중인 재료 목록"
-    )
     nutrition_limits: NutritionLimits = Field(
         default_factory=NutritionLimits,
         description="영양소 제한 설정"

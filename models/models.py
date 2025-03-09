@@ -48,8 +48,7 @@ class UserProfile(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-    owned_ingredients = Column(JSON, default={})
-    nutrition_limits = Column(JSON, default={})  # 추가된 부분
+    nutrition_limits = Column(JSON, default={})  # 영양소 제한만 남김
     recipe_history = Column(JSON, default=[])
     ratings = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
