@@ -3,7 +3,7 @@ from utils.ingredient_mapper import IngredientMapper
 
 class TestIngredientMapper(unittest.TestCase):
     def setUp(self):
-        self.mapper = IngredientMapper(threshold=0.6)
+        self.mapper = IngredientMapper(threshold=0.5)
     
     def test_preprocess_ingredient(self):
         test_cases = [
