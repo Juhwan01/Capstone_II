@@ -116,10 +116,9 @@ class RecipeRecommender:
             )
 
     async def get_recommendations(
-        self, db: AsyncSession, user_id: int
+    self, db: AsyncSession, user_id: int
     ) -> List[RecommendationResponse]:
-        """추천 레시피 조회"""
-        # Ingredient 테이블에서 사용자 재료 조회
+        # 기존 코드와 유사하지만, 재료 매칭 로직 개선
         ingredient_result = await db.execute(
             select(Ingredient).where(Ingredient.user_id == user_id)
         )

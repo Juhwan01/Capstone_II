@@ -2,7 +2,7 @@ from fastapi import HTTPException
 import requests
 from sqlalchemy import select
 from api.dependencies import get_async_db
-from models.models import Recipe,UserProfile
+from models.models import Ingredient, Recipe,UserProfile
 from db.session import AsyncSessionLocal
 from openai import OpenAI
 from typing import Dict, List
@@ -13,6 +13,8 @@ from core.config import settings
 from crud import crud_recipe, crud_user
 from services.recommender import RecipeRecommender
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from utils.ingredient_mapper import IngredientMapper
 
 keyId = "639e8e893d6445718216"
 serviceId = "COOKRCP01"
@@ -38,7 +40,6 @@ class RecipeService:
         user_id: int, 
         recipe_id: int
     ) -> Recipe:
-        """레시피 선택 처리"""
         # 레시피 존재 확인
         recipe = await crud_recipe.get_recipe(db, id=recipe_id)
         if not recipe:
@@ -49,11 +50,23 @@ class RecipeService:
         if not user_profile:
             raise HTTPException(status_code=404, detail="User profile not found")
 
-        # 재료 체크
-        missing_ingredients = self._check_ingredients(
-            recipe.ingredients, 
-            user_profile.owned_ingredients
+        # Ingredient 테이블에서 사용자 재료 조회
+        ingredient_result = await db.execute(
+            select(Ingredient).where(Ingredient.user_id == user_id)
         )
+        user_ingredients = {
+            ingredient.name: ingredient.amount 
+            for ingredient in ingredient_result.scalars().all()
+        }
+
+        # 재료 매퍼를 통한 정확한 매칭
+        ingredient_mapper = IngredientMapper()
+        matched_ingredients, missing_ingredients = ingredient_mapper.match_recipe_with_owned(
+            recipe.ingredients, 
+            user_ingredients
+        )
+
+        # 부족한 재료가 있으면 예외 발생
         if missing_ingredients:
             raise HTTPException(
                 status_code=400,
@@ -64,27 +77,59 @@ class RecipeService:
             )
 
         try:
-            # 재료 차감
-            await crud_user_profile.update_ingredients(
-                db, 
-                user_profile, 
-                self._calculate_remaining_ingredients(
-                    user_profile.owned_ingredients,
-                    recipe.ingredients
+            # 실제 재료 차감
+            for ingredient_name, used_amount in matched_ingredients.items():
+                await self.subtract_ingredient(
+                    db, 
+                    user_id, 
+                    ingredient_name, 
+                    used_amount
                 )
-            )
             
-            # 히스토리 업데이트
+            # 레시피 히스토리 업데이트
             await crud_user_profile.update_recipe_history(
                 db,
                 user_profile,
                 recipe_id
             )
 
+            # Q-value 업데이트
+            await self.recommender.update_q_value(
+                db,
+                user_id,
+                recipe_id,
+                1.0  # 레시피 선택에 대한 기본 보상
+            )
+
             return recipe
 
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+    async def subtract_ingredient(
+        self, 
+        db: AsyncSession, 
+        user_id: int, 
+        ingredient_name: str, 
+        amount: float
+    ):
+        """실제 재료 차감 로직"""
+        ingredient_result = await db.execute(
+            select(Ingredient).filter(
+                Ingredient.user_id == user_id, 
+                Ingredient.name == ingredient_name
+            )
+        )
+        ingredient = ingredient_result.scalar_one_or_none()
+
+        if ingredient:
+            ingredient.amount -= amount
+            
+            # 재료 수량이 0 이하면 삭제
+            if ingredient.amount <= 0:
+                await db.delete(ingredient)
+            
+            await db.commit()
 
     async def rate_recipe(
         self, 
@@ -151,7 +196,7 @@ class RecipeService:
         """레시피 사용 후 남은 재료량 계산"""
         remaining = owned_ingredients.copy()
         for ingredient, amount in recipe_ingredients.items():
-            remaining[ingredient] = remaining[ingredient] - amount
+            remaining[ingredient] = remaining.get(ingredient, 0) - amount
         return remaining
     
 class IngredientParser:

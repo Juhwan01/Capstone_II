@@ -150,50 +150,84 @@ class IngredientMapper:
         owned_ingredients: Dict[str, float]
     ) -> Tuple[Dict[str, float], Dict[str, Dict]]:
         """
-        레시피 재료와 보유 재료 매칭
-        
+        레시피 재료와 보유 재료의 정확한 매칭 및 차감 가능성 판단
+
         Args:
-            recipe_ingredients: 레시피 필요 재료
-            owned_ingredients: 보유 재료
-            
+            recipe_ingredients: 레시피에 필요한 재료와 수량
+            owned_ingredients: 사용자가 보유한 재료와 수량
+
         Returns:
-            (매핑된 레시피 재료, 부족한 재료 정보)
+            Tuple containing:
+            1. 매칭된 재료와 사용 가능한 수량
+            2. 부족하거나 매칭되지 않은 재료 정보
         """
-        # 레시피 재료 매핑
-        mapped_recipe = self.map_ingredients(recipe_ingredients)
-        
-        # 보유 재료 매핑
-        mapped_owned = self.map_ingredients(owned_ingredients)
-        
-        # 부족한 재료 확인
-        missing = {}
-        for ingredient, required_amount in mapped_recipe.items():
-            owned_amount = mapped_owned.get(ingredient, 0)
-            if owned_amount < required_amount:
-                missing[ingredient] = {
+        matched_ingredients = {}
+        missing_ingredients = {}
+
+        for recipe_ingredient, required_amount in recipe_ingredients.items():
+            best_match = None
+            best_match_score = 0
+            best_match_owned_amount = 0
+
+            for owned_ingredient, owned_amount in owned_ingredients.items():
+                # 유사도 계산 (이름 기반)
+                similarity = self._calculate_similarity(recipe_ingredient, owned_ingredient)
+                
+                # 유사도와 수량 모두 고려한 점수 계산
+                match_score = (
+                    similarity * 0.7 +  # 이름 유사도 70%
+                    min(1, owned_amount / required_amount) * 0.3  # 수량 매칭 30%
+                )
+
+                if match_score > best_match_score and match_score >= self.threshold:
+                    best_match = owned_ingredient
+                    best_match_score = match_score
+                    best_match_owned_amount = owned_amount
+
+            if best_match:
+                # 사용 가능한 수량 결정
+                usable_amount = min(best_match_owned_amount, required_amount)
+                
+                matched_ingredients[best_match] = usable_amount
+                
+                # 부족한 재료 추적
+                if usable_amount < required_amount:
+                    missing_ingredients[best_match] = {
+                        "required": required_amount,
+                        "owned": best_match_owned_amount,
+                        "missing": required_amount - usable_amount
+                    }
+            else:
+                # 완전히 매칭되지 않은 재료
+                missing_ingredients[recipe_ingredient] = {
                     "required": required_amount,
-                    "owned": owned_amount,
-                    "missing": required_amount - owned_amount
+                    "owned": 0,
+                    "missing": required_amount
                 }
-        
-        return mapped_recipe, missing
-    
+
+        return matched_ingredients, missing_ingredients
+
     def can_cook(
         self, 
         recipe_ingredients: Dict[str, float], 
         owned_ingredients: Dict[str, float]
     ) -> bool:
         """
-        레시피를 만들 수 있는지 확인
-        
+        레시피를 만들 수 있는지 정확히 판단
+
         Args:
-            recipe_ingredients: 레시피 필요 재료
-            owned_ingredients: 보유 재료
-            
+            recipe_ingredients: 레시피에 필요한 재료와 수량
+            owned_ingredients: 사용자가 보유한 재료와 수량
+
         Returns:
-            만들 수 있으면 True, 아니면 False
+            레시피 조리 가능 여부 (모든 재료가 충분한 경우 True)
         """
-        _, missing = self.match_recipe_with_owned(recipe_ingredients, owned_ingredients)
+        matched, missing = self.match_recipe_with_owned(
+            recipe_ingredients, 
+            owned_ingredients
+        )
+        
+        # 부족한 재료가 없으면 요리 가능
         return len(missing) == 0
     
     def get_matched_ingredients(
