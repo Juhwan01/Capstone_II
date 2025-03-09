@@ -80,9 +80,12 @@ class ReceiptService:
             if not temp_item:
                 raise ValueError(f"임시 데이터를 찾을 수 없습니다. (ID: {temp_id})")
             
-            # 2. timezone 처리
-            if expiry_date.tzinfo:
+            # 2. timezone 처리: UTC로 정규화
+            if expiry_date.tzinfo is not None:
                 expiry_date = expiry_date.astimezone(timezone.utc).replace(tzinfo=None)
+            else:
+                # offset-naive datetime인 경우 그대로 사용
+                expiry_date = expiry_date.replace(tzinfo=None)
             
             # 3. ingredients 테이블에 저장
             ingredient = Ingredient(

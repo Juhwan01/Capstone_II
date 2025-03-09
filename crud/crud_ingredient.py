@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.models import IngredientRequest, Ingredient, UserProfile
-from datetime import datetime
+from datetime import datetime, timezone
 from schemas.ingredient import IngredientCreate, IngredientUpdate
 from sqlalchemy.orm.attributes import flag_modified
 from typing import List
@@ -13,10 +13,16 @@ class CRUDIngredient:
         self.db = db
 
     async def create_ingredient(self, ingredient: IngredientCreate, user_id: int):
+        # expiry_date 타임존 처리
+        if ingredient.expiry_date.tzinfo is not None:
+            expiry_date = ingredient.expiry_date.astimezone(timezone.utc).replace(tzinfo=None)
+        else:
+            expiry_date = ingredient.expiry_date.replace(tzinfo=None)
+
         db_ingredient = Ingredient(
             name=ingredient.name,
             category=ingredient.category,
-            expiry_date=ingredient.expiry_date,
+            expiry_date=expiry_date,
             amount=ingredient.amount,
             user_id=user_id
         )
