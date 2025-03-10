@@ -19,19 +19,6 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileCreate, UserProfileUpdate
         )
         return result.scalar_one_or_none()
 
-    async def update_ingredients(
-        self, 
-        db: AsyncSession, 
-        profile: UserProfile, 
-        ingredients_update: Dict[str, float]
-    ) -> UserProfile:
-        """재료 수량 업데이트"""
-        for ingredient, amount in ingredients_update.items():
-            profile.owned_ingredients[ingredient] = amount
-        db.add(profile)
-        await db.commit()
-        await db.refresh(profile)
-        return profile
 
     async def update_recipe_history(
         self, 
