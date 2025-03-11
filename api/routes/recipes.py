@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import Field
@@ -8,6 +8,7 @@ from models.models import User
 from schemas.recipes import Recipe, RecipeCreate, RecipeUpdate,RecipeRating
 from schemas.users import UserProfile
 from services import RecipeRecommender,RecipeService
+from collections import defaultdict
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -26,7 +27,7 @@ async def create_recipe(
     )
     return recipe
 
-@router.get("/", response_model=List[Recipe])
+@router.get("/", response_model=Dict[str, List[Recipe]])
 async def list_recipes(
     db: AsyncSession = Depends(get_async_db),
     skip: int = 0,
@@ -39,7 +40,11 @@ async def list_recipes(
         skip=skip,
         limit=limit
     )
-    return recipes
+    print(recipes)
+    response_data = defaultdict(list)
+    for recipe in recipes:
+        response_data[recipe.category].append(recipe)
+    return response_data  
 
 @router.get("/{recipe_id}", response_model=Recipe)
 async def get_recipe(
