@@ -9,6 +9,7 @@ from schemas.recipes import Recipe, RecipeCreate, RecipeUpdate,RecipeRating
 from schemas.users import UserProfile
 from services import RecipeRecommender,RecipeService
 from collections import defaultdict
+from difflib import SequenceMatcher
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -45,6 +46,32 @@ async def list_recipes(
     for recipe in recipes:
         response_data[recipe.category].append(recipe)
     return response_data  
+
+@router.get("/search", response_model=List[Recipe])
+async def search_recipes(
+    query: str,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
+    threshold: float = 0.4,  # 유사도 임계값 (기본값 0.4)
+    limit: int = 10  # 최대 결과 수
+):
+    """레시피 이름 유사도 기반 검색"""
+    # 모든 레시피 가져오기
+    all_recipes = await crud_recipe.recipe.get_all_recipes(db)
+    
+    # 유사도 계산 및 정렬
+    similar_recipes = []
+    for recipe in all_recipes:
+        # 유사도 계산 (case-insensitive)
+        similarity = SequenceMatcher(None, query.lower(), recipe.name.lower()).ratio()
+        if similarity >= threshold:
+            similar_recipes.append((recipe, similarity))
+    
+    # 유사도에 따라 정렬하고 상위 결과 반환
+    similar_recipes.sort(key=lambda x: x[1], reverse=True)
+    top_recipes = [recipe for recipe, _ in similar_recipes[:limit]]
+    
+    return top_recipes
 
 @router.get("/{recipe_id}", response_model=Recipe)
 async def get_recipe(
