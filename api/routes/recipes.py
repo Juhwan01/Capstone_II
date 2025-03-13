@@ -129,7 +129,7 @@ async def delete_recipe(
             status_code=404,
             detail="Recipe not found"
         )
-    if recipe.created_by != current_user.id:
+    if recipe.creator_id != current_user.id:
         raise HTTPException(
             status_code=403,
             detail="Not enough permissions"
