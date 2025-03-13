@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.dependencies import get_async_db, get_current_active_user
 from services.receipt_service import ReceiptService
@@ -7,6 +7,8 @@ from datetime import datetime
 from typing import Dict, Any, List
 from schemas.receipts import TempReceiptUpdate, IngredientUpdate
 from pydantic import BaseModel
+
+from services.s3_service import upload_images_to_s3
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
 
@@ -23,12 +25,28 @@ async def upload_receipt(
     current_user: User = Depends(get_current_active_user)
 ):
     """영수증 이미지를 업로드하고 분석하여 임시 저장합니다."""
+    # 파일 확장자 확인
+    file_ext = file.filename.split('.')[-1].lower()
+    if file_ext not in {'png', 'jpg', 'jpeg', 'gif'}:
+        raise HTTPException(
+            status_code=400,
+            detail=f"지원하지 않는 파일 형식입니다: {file_ext}"
+        )
+    
+    # S3 업로드 (단일 파일이므로 리스트로 감싸줌)
+    image_urls = await upload_images_to_s3([file])
+    if not image_urls:
+        raise HTTPException(status_code=500, detail="S3에 이미지 업로드 실패")
+    
+    # 영수증 분석 서비스 호출
     receipt_service = ReceiptService()
     analyzed_items = await receipt_service.analyze_receipt(file, db)
     
+    # 이미지 URL과 분석 결과 함께 반환
     return {
         "message": "영수증이 성공적으로 분석되었습니다. 각 상품의 카테고리와 유통기한을 입력해주세요.",
-        "items": analyzed_items
+        "items": analyzed_items,
+        "image_url": image_urls[0]  # 첫 번째(유일한) 이미지 URL 반환
     }
 
 @router.delete("/temp/{temp_id}")
