@@ -1,5 +1,5 @@
-from typing import List, Dict
-from fastapi import APIRouter, Body, Depends, HTTPException
+from typing import List, Dict, Optional
+from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import Field
 from api.dependencies import get_async_db, get_current_active_user
@@ -11,21 +11,52 @@ from services import RecipeRecommender,RecipeService
 from collections import defaultdict
 from difflib import SequenceMatcher
 
+from services.s3_service import upload_images_to_s3
+from utils.form_parser import parse_recipe_form
+
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
 @router.post("/", response_model=Recipe)
 async def create_recipe(
     *,
     db: AsyncSession = Depends(get_async_db),
-    recipe_in: RecipeCreate,
+    recipe_in: RecipeCreate = Depends(parse_recipe_form),  # 폼 파서로 변경
+    files: Optional[List[UploadFile]] = File(None),  # 이미지 파일 추가
     current_user: User = Depends(get_current_active_user)
 ):
-    """Create new recipe"""
+    """Create new recipe with image uploads"""
+    
+    # 이미지 파일 확장자 검사
+    if files:
+        for file in files:
+            file_ext = file.filename.split('.')[-1].lower()
+            if file_ext not in {'png', 'jpg', 'jpeg', 'gif'}:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported file extension: {file_ext}"
+                )
+    
+    # S3 업로드
+    image_urls = await upload_images_to_s3(files) if files else []
+    if files and not image_urls:
+        raise HTTPException(status_code=500, detail="Failed to upload images to S3")
+    
+    # 첫 번째 이미지를 대표 이미지로 설정 (있는 경우)
+    if image_urls:
+        recipe_in.image_large = image_urls[0]
+        recipe_in.image_small = image_urls[0]  # 필요한 경우 썸네일 URL을 다르게 설정할 수 있음
+    
+    # 요리 과정 이미지가 있다면 저장
+    if len(image_urls) > 1:
+        recipe_in.cooking_img = image_urls[1:]
+    
+    # 레시피 생성
     recipe = await crud_recipe.recipe.create_with_owner(
         db=db,
         obj_in=recipe_in,
         owner_id=current_user.id
     )
+    
     return recipe
 
 @router.get("/", response_model=Dict[str, List[Recipe]])
