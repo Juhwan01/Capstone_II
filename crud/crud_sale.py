@@ -37,7 +37,7 @@ class CRUDsale:
             else:
                 return {"error": "해당 재료를 찾을 수 없습니다."}
 
-            # ✅ Sale 인스턴스 생성
+            # ✅ Sale 인스턴스 생성 (카테고리 필드 추가)
             sale = Sale(
                 ingredient_id=sale_data.ingredient_id,
                 ingredient_name=sale_data.ingredient_name,
@@ -49,7 +49,8 @@ class CRUDsale:
                 expiry_date=sale_data.expiry_date,
                 status=sale_data.status,
                 contents=sale_data.contents,
-                amount=sale_data.amount  # ✅ 추가된 amount 값 저장
+                amount=sale_data.amount,  # ✅ 추가된 amount 값 저장
+                category=sale_data.category  # ✅ 새로 추가된 category 필드
             )
             self.db.add(sale)
             await self.db.flush()  # ✅ `sale.id`를 얻기 위해 flush 실행
@@ -88,6 +89,7 @@ class CRUDsale:
                 "status": sale.status,
                 "contents": sale.contents,
                 "amount": sale.amount,  # ✅ 추가된 amount 반환
+                "category": sale.category,  # ✅ 응답에도 category 필드 추가
                 "images": image_urls  # ✅ 빈 리스트일 수도 있음
             }
 

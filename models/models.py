@@ -104,6 +104,7 @@ class Sale(Base):
     ingredient_id = Column(Integer, ForeignKey('ingredients.id'), nullable=True, default=None)  # 식재료 ID (Foreign Key)
     seller_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # 판매자 ID (Foreign Key)
     value = Column(Float, nullable=False)  # 판매 가격
+    category = Column(String , nullable=False)
     location_lat = Column(Float, nullable=False)  # 판매 위치 위도
     location_lon = Column(Float, nullable=False)  # 판매 위치 경도
     title = Column (String , nullable=False)
