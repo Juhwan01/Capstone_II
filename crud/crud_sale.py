@@ -252,11 +252,11 @@ class CRUDsale:
                     "latitude": sale.location_lat,
                     "longitude": sale.location_lon
                     },
-                    expirate=sale.expiry_date,
+                    expiry_date=sale.expiry_date,
                     status=sale.status,
                     amount=sale.amount,
                     contents=sale.contents,
-                    images=[SaleImageResponse(image_url=img.image_url) for img in sale.images]
+                    images=[img.image_url for img in sale.images]
                 ))
             return sales_list
     from sqlalchemy.orm import joinedload
