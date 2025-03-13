@@ -14,7 +14,7 @@ class SaleCreate(BaseModel):
     status: Optional[str] = Field(default="Available")
     amount: int
     contents: Optional[str]
-    category: str  
+    category: Optional[str]
 
 class SaleImageResponse(BaseModel):
     image_url: str
