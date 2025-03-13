@@ -200,7 +200,7 @@ class CRUDsale:
             await self.db.commit()
 
             return {
-                "message": "Sale successfully updated",
+               "message": "Sale successfully updated",
                 "id": sale.id,
                 "ingredient_id": sale.ingredient_id,
                 "ingredient_name": sale.ingredient_name,
@@ -215,6 +215,7 @@ class CRUDsale:
                 "status": sale.status,
                 "contents": sale.contents,
                 "amount": sale.amount,
+                "category": sale.category,  # ✅ 카테고리 필드 추가
                 "images": image_urls if image_urls else [img.image_url for img in sale.images]  # ✅ 이미지 반영
             }
 
@@ -234,34 +235,34 @@ class CRUDsale:
         return result.scalar_one_or_none()
     
     async def get_all_sales(self):
-            """ 등록된 모든 상품 조회 (이미지 포함) """
-            result = await self.db.execute(
-                select(Sale).options(selectinload(Sale.images))
-            )
-            sales = result.scalars().all()
+        """ 등록된 모든 상품 조회 (이미지 포함) """
+        result = await self.db.execute(
+            select(Sale).options(selectinload(Sale.images))
+        )
+        sales = result.scalars().all()
 
-            # ✅ SaleResponse 형식으로 변환
-            sales_list = []
-            for sale in sales:
-                    sales_list.append(SaleResponse(
-                    id=sale.id,
-                    ingredient_id=sale.ingredient_id,
-                    ingredient_name=sale.ingredient_name,
-                    seller_id=sale.seller_id,
-                    title=sale.title,
-                    value=sale.value,
-                    location={  # ✅ location 필드 추가
-                    "latitude": sale.location_lat,
-                    "longitude": sale.location_lon
-                    },
-                    expiry_date=sale.expiry_date,
-                    status=sale.status,
-                    amount=sale.amount,
-                    contents=sale.contents,
-                    images=[img.image_url for img in sale.images]
-                ))
-            return sales_list
-    from sqlalchemy.orm import joinedload
+        # ✅ SaleResponse 형식으로 변환
+        sales_list = []
+        for sale in sales:
+                sales_list.append(SaleResponse(
+                id=sale.id,
+                ingredient_id=sale.ingredient_id,
+                ingredient_name=sale.ingredient_name,
+                seller_id=sale.seller_id,
+                title=sale.title,
+                value=sale.value,
+                location={  # ✅ location 필드 추가
+                "latitude": sale.location_lat,
+                "longitude": sale.location_lon
+                },
+                expiry_date=sale.expiry_date,
+                status=sale.status,
+                amount=sale.amount,
+                contents=sale.contents,
+                category=sale.category,  # ✅ 카테고리 필드 추가
+                images=[img.image_url for img in sale.images]
+            ))
+        return sales_list
 
     async def get_sales_by_location(self, user_lat: float, user_lon: float, radius: int = 5000):
             """
@@ -303,6 +304,7 @@ class CRUDsale:
                     status=sale.status,
                     amount=sale.amount,
                     contents=sale.contents,
+                    category=sale.category,  # ✅ 카테고리 필드 추가
                     images=[img.image_url for img in sale.images]  # ✅ 이미지 URL 리스트 반환
                 )
                 for sale in sales
