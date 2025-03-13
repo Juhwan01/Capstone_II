@@ -48,9 +48,16 @@ async def parse_recipe_form(
     """
     Form 데이터를 RecipeCreate 모델로 변환하는 의존성 함수
     """
-    # 문자열로 받은 JSON 데이터를 파싱
-    ingredients_dict = json.loads(ingredients) if ingredients else {}
-    instructions_list = json.loads(instructions) if instructions else []
+    # 안전하게 JSON 파싱 처리
+    try:
+        ingredients_dict = json.loads(ingredients) if ingredients and ingredients.strip() else {}
+    except json.JSONDecodeError:
+        ingredients_dict = {}
+    
+    try:
+        instructions_list = json.loads(instructions) if instructions and instructions.strip() else []
+    except json.JSONDecodeError:
+        instructions_list = []
     
     # RecipeCreate 객체 생성
     return RecipeCreate(
