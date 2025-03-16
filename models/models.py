@@ -124,8 +124,10 @@ class Image(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     sale_id = Column(Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=False)
     image_url = Column(String, nullable=True)
+    group_purchase_id = Column(Integer, ForeignKey("group_purchases.id", ondelete="CASCADE"), nullable=True)
 
     sale = relationship("Sale", back_populates="images")
+    group_purchase = relationship("GroupPurchase", back_populates="images")
 
 class Transaction(Base):
     __tablename__ = 'transaction'
@@ -222,6 +224,7 @@ class GroupPurchase(Base):
     participants = relationship("GroupPurchaseParticipant", back_populates="group_purchase")
     # 기존 GroupPurchase 모델에 채팅방 관계 추가
     chatroom = relationship("GroupChatroom", back_populates="group_purchase", uselist=False)
+    images = relationship("Image", back_populates="group_purchase", cascade="all, delete")  # 이미지 관계 추가
 
 class GroupPurchaseParticipant(Base):
     __tablename__ = "group_purchase_participants"

@@ -2,14 +2,28 @@ from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, validator
-from models.models import GroupPurchaseStatus
 
 class GroupPurchaseStatus(str, Enum):
     OPEN = "open"
     CLOSED = "closed"
     COMPLETED = "completed"
 
-class GroupPurchaseBase(BaseModel):
+# validator를 포함한 BaseModel 정의
+class TimestampModel(BaseModel):
+    # timezone 처리를 위한 validator 추가
+    @validator('end_date', 'created_at', 'updated_at', pre=True)
+    def remove_timezone(cls, v):
+        if isinstance(v, datetime):
+            return v.replace(tzinfo=None)
+        elif isinstance(v, str):
+            try:
+                dt = datetime.fromisoformat(v.replace('Z', '+00:00'))
+                return dt.replace(tzinfo=None)
+            except ValueError:
+                return datetime.strptime(v, "%Y-%m-%dT%H:%M:%S.%f")
+        return v
+
+class GroupPurchaseBase(TimestampModel):
     title: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
     price: float = Field(..., gt=0)  # 공구 가격
@@ -29,18 +43,14 @@ class GroupPurchaseBase(BaseModel):
     current_participants: int = Field(default=0)
     status: str = Field(default="open")
 
-    # timezone 처리를 위한 validator 추가
-    @validator('end_date', 'created_at', 'updated_at', pre=True)
-    def remove_timezone(cls, v):
-        if isinstance(v, datetime):
-            return v.replace(tzinfo=None)
-        elif isinstance(v, str):
-            try:
-                dt = datetime.fromisoformat(v.replace('Z', '+00:00'))
-                return dt.replace(tzinfo=None)
-            except ValueError:
-                return datetime.strptime(v, "%Y-%m-%dT%H:%M:%S.%f")
-        return v
+# 이미지 응답 모델 (validator 사용하지 않음)
+class GroupPurchaseImage(BaseModel):
+    id: int
+    group_purchase_id: int
+    image_url: str
+    
+    class Config:
+        from_attributes = True  # v2에서 orm_mode 대신 사용
 
 class GroupPurchaseCreate(GroupPurchaseBase):
     pass
@@ -57,9 +67,10 @@ class GroupPurchase(GroupPurchaseBase):
     id: int
     created_by: int  # 생성자 ID
     closed_at: Optional[datetime] = None
-
+    images: List[GroupPurchaseImage] = []  # 이미지 정보 포함
+    
     class Config:
-        from_attributes = True
+        from_attributes = True  # v2에서 orm_mode 대신 사용
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
@@ -72,10 +83,10 @@ class ParticipantInfo(BaseModel):
     joined_at: datetime
 
     class Config:
-        from_attributes = True
+        from_attributes = True  # v2에서 orm_mode 대신 사용
 
 class GroupPurchaseDetail(GroupPurchase):
     participants_info: List[ParticipantInfo] = []
 
     class Config:
-        from_attributes = True
+        from_attributes = True  # v2에서 orm_mode 대신 사용

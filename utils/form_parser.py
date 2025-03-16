@@ -1,7 +1,9 @@
+import datetime
 from decimal import Decimal
 import json
 from typing import Optional
 from fastapi import Form
+from schemas.group_purchases import GroupPurchaseCreate, GroupPurchaseUpdate
 from schemas.recipes import RecipeCreate
 from schemas.sale import SaleCreate
 
@@ -72,3 +74,72 @@ async def parse_recipe_form(
         instructions=instructions_list,
         cooking_img=[]  # 초기에는 빈 리스트로 설정
     )
+# 공동구매 생성 폼 파서
+async def parse_group_purchase_form(
+    title: str = Form(...),
+    description: str = Form(...),
+    target_amount: int = Form(...),
+    current_amount: int = Form(0),
+    price_per_unit: float = Form(...),
+    status: str = Form("active"),
+    expires_at: datetime = Form(...),
+    location_lat: float = Form(...),
+    location_lon: float = Form(...),
+    max_participants: Optional[int] = Form(None),
+    category: Optional[str] = Form(None)
+) -> GroupPurchaseCreate:
+    """Form 데이터를 GroupPurchaseCreate 모델로 변환"""
+    return GroupPurchaseCreate(
+        title=title,
+        description=description,
+        target_amount=target_amount,
+        current_amount=current_amount,
+        price_per_unit=price_per_unit,
+        status=status,
+        expires_at=expires_at,
+        location_lat=location_lat,
+        location_lon=location_lon,
+        max_participants=max_participants,
+        category=category
+    )
+
+# 공동구매 업데이트 폼 파서
+async def parse_group_purchase_update_form(
+    title: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    target_amount: Optional[int] = Form(None),
+    current_amount: Optional[int] = Form(None),
+    price_per_unit: Optional[float] = Form(None),
+    status: Optional[str] = Form(None),
+    expires_at: Optional[datetime] = Form(None), # type: ignore
+    location_lat: Optional[float] = Form(None),
+    location_lon: Optional[float] = Form(None),
+    max_participants: Optional[int] = Form(None),
+    category: Optional[str] = Form(None)
+) -> GroupPurchaseUpdate:
+    """Form 데이터를 GroupPurchaseUpdate 모델로 변환"""
+    update_data = {}
+    if title is not None:
+        update_data["title"] = title
+    if description is not None:
+        update_data["description"] = description
+    if target_amount is not None:
+        update_data["target_amount"] = target_amount
+    if current_amount is not None:
+        update_data["current_amount"] = current_amount
+    if price_per_unit is not None:
+        update_data["price_per_unit"] = price_per_unit
+    if status is not None:
+        update_data["status"] = status
+    if expires_at is not None:
+        update_data["expires_at"] = expires_at
+    if location_lat is not None:
+        update_data["location_lat"] = location_lat
+    if location_lon is not None:
+        update_data["location_lon"] = location_lon
+    if max_participants is not None:
+        update_data["max_participants"] = max_participants
+    if category is not None:
+        update_data["category"] = category
+        
+    return GroupPurchaseUpdate(**update_data)
