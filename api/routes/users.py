@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies import get_async_db, get_current_active_user
 from crud import crud_user
+from crud import crud_auth
 import crud
 from schemas.users import (
     UserProfile, UserProfileCreate,
@@ -23,6 +24,25 @@ async def read_user_me(
 ):
     """Get current user"""
     return current_user
+
+@router.get("/{user_id}", response_model=User)
+async def get_user_by_id(
+    user_id: int,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    사용자 ID로 사용자 정보 조회
+    """
+    # 사용자 조회
+    user = await crud_auth.get_user_by_id(db, user_id)
+    
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+    return user
 
 @router.get("/me/profile", response_model=UserProfile)
 async def get_my_profile(
