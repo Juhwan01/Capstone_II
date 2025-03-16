@@ -122,7 +122,7 @@ class Image(Base):
     __tablename__ = "images"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    sale_id = Column(Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=False)
+    sale_id = Column(Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=True)
     image_url = Column(String, nullable=True)
     group_purchase_id = Column(Integer, ForeignKey("group_purchases.id", ondelete="CASCADE"), nullable=True)
 

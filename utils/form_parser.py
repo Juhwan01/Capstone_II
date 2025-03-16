@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from decimal import Decimal
 import json
 from typing import Optional
@@ -78,42 +78,31 @@ async def parse_recipe_form(
 async def parse_group_purchase_form(
     title: str = Form(...),
     description: str = Form(...),
-    target_amount: int = Form(...),
-    current_amount: int = Form(0),
-    price_per_unit: float = Form(...),
-    status: str = Form("active"),
-    expires_at: datetime = Form(...),
-    location_lat: float = Form(...),
-    location_lon: float = Form(...),
-    max_participants: Optional[int] = Form(None),
-    category: Optional[str] = Form(None)
+    price: float = Form(...),  # price_per_unit 대신 price
+    original_price: float = Form(...),  # 새로 추가
+    category: str = Form(...),
+    max_participants: int = Form(5),  # 기본값을 5로 설정 (2보다 커야 함)
+    end_date: datetime = Form(...)  # expires_at 대신 end_date
 ) -> GroupPurchaseCreate:
     """Form 데이터를 GroupPurchaseCreate 모델로 변환"""
     return GroupPurchaseCreate(
         title=title,
         description=description,
-        target_amount=target_amount,
-        current_amount=current_amount,
-        price_per_unit=price_per_unit,
-        status=status,
-        expires_at=expires_at,
-        location_lat=location_lat,
-        location_lon=location_lon,
+        price=price,
+        original_price=original_price,
+        category=category,
         max_participants=max_participants,
-        category=category
+        end_date=end_date
     )
 
 # 공동구매 업데이트 폼 파서
 async def parse_group_purchase_update_form(
     title: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
-    target_amount: Optional[int] = Form(None),
-    current_amount: Optional[int] = Form(None),
-    price_per_unit: Optional[float] = Form(None),
+    price: Optional[float] = Form(None),  # price_per_unit 대신 price
+    original_price: Optional[float] = Form(None),  # 새로 추가
     status: Optional[str] = Form(None),
-    expires_at: Optional[datetime] = Form(None), # type: ignore
-    location_lat: Optional[float] = Form(None),
-    location_lon: Optional[float] = Form(None),
+    end_date: Optional[datetime] = Form(None),  # expires_at 대신 end_date
     max_participants: Optional[int] = Form(None),
     category: Optional[str] = Form(None)
 ) -> GroupPurchaseUpdate:
@@ -123,20 +112,14 @@ async def parse_group_purchase_update_form(
         update_data["title"] = title
     if description is not None:
         update_data["description"] = description
-    if target_amount is not None:
-        update_data["target_amount"] = target_amount
-    if current_amount is not None:
-        update_data["current_amount"] = current_amount
-    if price_per_unit is not None:
-        update_data["price_per_unit"] = price_per_unit
+    if price is not None:
+        update_data["price"] = price
+    if original_price is not None:
+        update_data["original_price"] = original_price
     if status is not None:
         update_data["status"] = status
-    if expires_at is not None:
-        update_data["expires_at"] = expires_at
-    if location_lat is not None:
-        update_data["location_lat"] = location_lat
-    if location_lon is not None:
-        update_data["location_lon"] = location_lon
+    if end_date is not None:
+        update_data["end_date"] = end_date
     if max_participants is not None:
         update_data["max_participants"] = max_participants
     if category is not None:
