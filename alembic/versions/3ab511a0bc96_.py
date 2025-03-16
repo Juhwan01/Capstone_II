@@ -19,15 +19,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # `spatial_ref_sys` 테이블 삭제 코드 제거
     op.alter_column('transaction', 'sale_id',
                existing_type=sa.INTEGER(),
                nullable=True)
-    op.drop_column('user_profiles', 'owned_ingredients')
+    if op.get_bind().dialect.has_column('user_profiles', 'owned_ingredients'):
+        op.drop_column('user_profiles', 'owned_ingredients')
 
 
 def downgrade() -> None:
-    # `spatial_ref_sys` 테이블 다시 생성하는 코드 제거
     op.add_column('user_profiles', sa.Column('owned_ingredients', postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True))
     op.alter_column('transaction', 'sale_id',
                existing_type=sa.INTEGER(),

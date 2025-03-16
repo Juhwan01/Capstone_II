@@ -201,7 +201,10 @@ class GroupPurchase(Base):
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    price = Column(Float, nullable=False)
+    price = Column(Float, nullable=False)  # 공구 가격
+    original_price = Column(Float, nullable=False)  # 원래 가격
+    saving_price = Column(Float, nullable=False)  # 절약 가능 금액
+    category = Column(String, nullable=False)  # 카테고리 추가
     max_participants = Column(Integer, nullable=False)
     current_participants = Column(Integer, default=0)
     status = Column(

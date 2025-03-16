@@ -12,9 +12,16 @@ class GroupPurchaseStatus(str, Enum):
 class GroupPurchaseBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
-    price: float = Field(..., gt=0)
+    price: float = Field(..., gt=0)  # 공구 가격
+    original_price: float = Field(..., gt=0)  # 원래 가격
+    category: str = Field(...)  # 카테고리 필드 추가
     max_participants: int = Field(default=5, ge=2, le=100)
     end_date: datetime
+
+    # saving_price는 자동 계산
+    @property
+    def saving_price(self) -> float:
+        return self.original_price - self.price
 
     # 기본값 설정
     created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -14,7 +14,13 @@ class CRUDGroupPurchase(CRUDBase[GroupPurchase, GroupPurchaseCreate, GroupPurcha
         self, db: AsyncSession, *, obj_in: GroupPurchaseCreate, owner_id: int
     ) -> GroupPurchase:
         obj_in_data = obj_in.model_dump()
-        db_obj = GroupPurchase(**obj_in_data, created_by=owner_id)  # status 제거
+        saving_price = obj_in_data['original_price'] - obj_in_data['price']
+        
+        db_obj = GroupPurchase(
+            **obj_in_data,
+            created_by=owner_id,
+            saving_price=saving_price
+        )
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
