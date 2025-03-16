@@ -76,7 +76,24 @@ async def list_recipes(
     response_data = defaultdict(list)
     for recipe in recipes:
         response_data[recipe.category].append(recipe)
-    return response_data  
+    return response_data
+
+@router.get("/my", response_model=List[Recipe])
+async def get_my_recipes(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
+    skip: int = 0,
+    limit: int = 100
+):
+    """현재 로그인한 사용자가
+    생성한 레시피 목록 조회"""
+    recipes = await crud_recipe.recipe.get_multi_by_owner(
+        db=db,
+        owner_id=current_user.id,
+        skip=skip,
+        limit=limit
+    )
+    return recipes
 
 @router.get("/search", response_model=List[Recipe])
 async def search_recipes(
@@ -134,7 +151,7 @@ async def update_recipe(
             status_code=404,
             detail="Recipe not found"
         )
-    if recipe.created_by != current_user.id:
+    if recipe.creator_id != current_user.id:
         raise HTTPException(
             status_code=403,
             detail="Not enough permissions"
