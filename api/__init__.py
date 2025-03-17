@@ -9,7 +9,8 @@ from api.routes import (
     chat,
     sale,
     group_purchases,
-    receipts
+    receipts,
+    group_chat
 )
 
 router = APIRouter()
@@ -23,3 +24,4 @@ router.include_router(chat.router)
 router.include_router(group_purchases.router)
 router.include_router(receipts.router)
 router.include_router(sale.router)
+router.include_router(group_chat.router)
