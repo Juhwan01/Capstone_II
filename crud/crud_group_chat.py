@@ -107,7 +107,12 @@ async def create_chat_message(db: AsyncSession, chat_message: GroupChatMessageCr
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
     
     # 메시지 생성
-    db_message = GroupChatMessage(**chat_message.dict())
+    # crud/crud_group_chat.py에서
+    db_message = GroupChatMessage(
+    chatroom_id=chat_message.chatroom_id,
+    sender_id=chat_message.sender_id,
+    content=chat_message.content  # message -> content로 변경
+        )
     db.add(db_message)
     await db.commit()
     await db.refresh(db_message)

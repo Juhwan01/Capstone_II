@@ -242,7 +242,7 @@ async def group_chat(websocket: WebSocket, chatroom_id: int, db: AsyncSession = 
                             message_create = GroupChatMessageCreate(
                                 chatroom_id=chatroom_id,
                                 sender_id=int(user_id),
-                                message=message_data.get("content")
+                                content=message_data.get("content")
                             )
                             await create_chat_message(db, message_create)
                             print(f"메시지 저장 완료: 그룹 채팅방 {chatroom_id}")

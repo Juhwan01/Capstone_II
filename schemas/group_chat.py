@@ -39,7 +39,7 @@ class GroupChatParticipant(GroupChatParticipantBase):
 class GroupChatMessageBase(BaseModel):
     chatroom_id: int
     sender_id: int
-    message: str
+    content: str
 
 
 class GroupChatMessageCreate(GroupChatMessageBase):
