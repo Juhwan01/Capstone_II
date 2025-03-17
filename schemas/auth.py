@@ -28,11 +28,11 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
 
-class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    username: Optional[str] = Field(None, min_length=3, max_length=50)
-    nickname: Optional[str] = Field(None, min_length=2, max_length=50)
-    password: Optional[str] = Field(None, min_length=8)
+# class UserUpdate(BaseModel):
+#     email: Optional[EmailStr] = None
+#     username: Optional[str] = Field(None, min_length=3, max_length=50)
+#     nickname: Optional[str] = Field(None, min_length=2, max_length=50)
+#     password: Optional[str] = Field(None, min_length=8) 
 
 class User(UserBase):
     id: int
@@ -45,7 +45,8 @@ class User(UserBase):
     zone_no: str
     location_lat: float
     location_lon: float
-
+    profile_image_url: Optional[str] = None 
+    
     class Config:
         from_attributes = True
         
@@ -58,3 +59,4 @@ class UserUpdate(BaseModel):
     zone_no: Optional[str] = Field(None, min_length=3, max_length=50)
     location_lat: Optional[float] = None
     location_lon: Optional[float] = None
+    profile_image_url : Optional[str] = None

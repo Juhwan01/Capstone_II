@@ -1,8 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
 import json
-from typing import Optional
-from fastapi import Form
+from typing import Any, Dict, Optional
+from fastapi import File, Form, UploadFile
 from schemas.group_purchases import GroupPurchaseCreate, GroupPurchaseUpdate
 from schemas.recipes import RecipeCreate
 from schemas.sale import SaleCreate
@@ -126,3 +126,40 @@ async def parse_group_purchase_update_form(
         update_data["category"] = category
         
     return GroupPurchaseUpdate(**update_data)
+async def parse_user_update_form(
+    email: Optional[str] = Form(None),
+    username: Optional[str] = Form(None),
+    nickname: Optional[str] = Form(None),
+    password: Optional[str] = Form(None),
+    address_name: Optional[str] = Form(None),
+    zone_no: Optional[str] = Form(None),
+    location_lat: Optional[float] = Form(None),
+    location_lon: Optional[float] = Form(None),
+    profile_image: Optional[UploadFile] = File(None)
+) -> tuple[Dict[str, Any], Optional[UploadFile]]:
+    """
+    Form 데이터를 UserUpdate 모델과 프로필 이미지로 변환하는 함수
+    
+    Returns:
+        tuple: (업데이트 데이터 딕셔너리, 프로필 이미지 파일)
+    """
+    # 업데이트할 필드만 포함하는 딕셔너리 생성
+    update_data = {}
+    if email is not None:
+        update_data["email"] = email
+    if username is not None:
+        update_data["username"] = username
+    if nickname is not None:
+        update_data["nickname"] = nickname
+    if password is not None:
+        update_data["password"] = password
+    if address_name is not None:
+        update_data["address_name"] = address_name
+    if zone_no is not None:
+        update_data["zone_no"] = zone_no
+    if location_lat is not None:
+        update_data["location_lat"] = location_lat
+    if location_lon is not None:
+        update_data["location_lon"] = location_lon
+    
+    return update_data, profile_image

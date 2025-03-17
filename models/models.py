@@ -30,6 +30,8 @@ class User(Base):
     zone_no = Column(String, nullable=False)
     location_lat = Column(Float, nullable=False)
     location_lon = Column(Float, nullable=False)
+    profile_image_url = Column(String, nullable=True)  
+    
     # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     recipes = relationship("Recipe", back_populates="creator")
@@ -230,13 +232,13 @@ class GroupPurchaseParticipant(Base):
     __tablename__ = "group_purchase_participants"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, ForeignKey("users.username"), nullable=False)  # user_id 대신 username으로 변경
+    username = Column(String, ForeignKey("users.username", onupdate="CASCADE"), nullable=False)
     group_buy_id = Column(Integer, ForeignKey("group_purchases.id"), nullable=False)
     joined_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     group_purchase = relationship("GroupPurchase", back_populates="participants")
-    user = relationship("User", back_populates="group_purchase_participations", foreign_keys=[username])  # foreign_key 변경
+    user = relationship("User", back_populates="group_purchase_participations", foreign_keys=[username])
 
 class GroupChatroom(Base):
     __tablename__ = "group_chatrooms"
