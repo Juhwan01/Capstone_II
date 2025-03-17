@@ -268,7 +268,7 @@ class GroupChatMessage(Base):
     id = Column(Integer, primary_key=True, index=True)
     chatroom_id = Column(Integer, ForeignKey("group_chatrooms.id"), nullable=False)
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    message = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
