@@ -2,8 +2,9 @@ from datetime import datetime
 import json
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from api.dependencies import get_async_db
-from models.models import GroupChatroom, GroupChatMessage, GroupChatParticipant
+from models.models import GroupChatroom, GroupChatMessage, GroupChatParticipant, User
 from schemas.group_chat import GroupChatroomCreate, GroupChatMessageCreate
 from crud.crud_group_chat import (
     create_chatroom, 
@@ -88,6 +89,11 @@ async def get_messages(chatroom_id: int, db: AsyncSession = Depends(get_async_db
     """채팅방의 메시지 이력 조회"""
     return await get_chat_messages(db, chatroom_id)
 
+async def get_user_by_email(db: AsyncSession, email: str) -> User:
+    """이메일로 사용자 조회"""
+    result = await db.execute(select(User).filter(User.email == email))
+    return result.scalars().first()
+
 @router.websocket("/ws/groupchat/{chatroom_id}")
 async def group_chat(websocket: WebSocket, chatroom_id: int, db: AsyncSession = Depends(get_async_db)):
     """그룹 채팅 WebSocket 핸들러"""
@@ -103,6 +109,10 @@ async def group_chat(websocket: WebSocket, chatroom_id: int, db: AsyncSession = 
     
     if not token:
         print(f"토큰 없음: 그룹 채팅방 {chatroom_id}")
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": "인증 토큰이 필요합니다."
+        }))
         await websocket.close()
         return
     
@@ -115,18 +125,44 @@ async def group_chat(websocket: WebSocket, chatroom_id: int, db: AsyncSession = 
             algorithms=[settings.ALGORITHM]
         )
         email = payload.get("sub")
+        # user_id를 토큰 또는 쿼리 파라미터에서 가져오기
         user_id = payload.get("user_id") or user_id_param
         print(f"토큰 검증 완료: 그룹 채팅방 {chatroom_id}, 이메일: {email}, 사용자 ID: {user_id}")
+        
+        # 이메일로 사용자 ID 찾기 (토큰에 user_id가 없는 경우)
+        if not user_id and email:
+            user = await get_user_by_email(db, email)
+            if user:
+                user_id = str(user.id)
+                print(f"이메일로 사용자 ID 찾음: {user_id}")
         
         # 토큰 만료 확인
         if datetime.fromtimestamp(payload.get("exp")) < datetime.utcnow():
             print(f"토큰 만료됨: 그룹 채팅방 {chatroom_id}")
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "message": "인증 토큰이 만료되었습니다."
+            }))
             await websocket.close()
             return
             
-        # 이메일은 필수, user_id가 없어도 진행
+        # 이메일은 필수, user_id가 없으면 오류
         if not email:
             print(f"이메일 없음: 그룹 채팅방 {chatroom_id}")
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "message": "인증 정보가 유효하지 않습니다."
+            }))
+            await websocket.close()
+            return
+        
+        # user_id가 없으면 오류
+        if not user_id:
+            print(f"사용자 ID를 찾을 수 없음: 그룹 채팅방 {chatroom_id}")
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "message": "사용자 ID를 찾을 수 없습니다. 다시 로그인해주세요."
+            }))
             await websocket.close()
             return
         
@@ -230,7 +266,15 @@ async def group_chat(websocket: WebSocket, chatroom_id: int, db: AsyncSession = 
             
     except JWTError as e:
         print(f"JWT 오류: 그룹 채팅방 {chatroom_id}, {str(e)}")
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": "인증 토큰이 유효하지 않습니다."
+        }))
         await websocket.close()
     except Exception as e:
         print(f"예상치 못한 오류: 그룹 채팅방 {chatroom_id}, {str(e)}")
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": f"연결 중 오류가 발생했습니다: {str(e)}"
+        }))
         await websocket.close()
