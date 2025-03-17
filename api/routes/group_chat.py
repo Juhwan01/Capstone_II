@@ -210,7 +210,7 @@ async def group_chat(websocket: WebSocket, chatroom_id: int, db: AsyncSession = 
                         {
                             "id": msg.id,
                             "sender_id": msg.sender_id,
-                            "content": msg.message,
+                            "content": msg.content,
                             "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
                             "chatroom_id": msg.chatroom_id
                         } for msg in chat_history
