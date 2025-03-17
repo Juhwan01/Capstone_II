@@ -239,15 +239,22 @@ async def group_chat(websocket: WebSocket, chatroom_id: int, db: AsyncSession = 
                     if message_data.get("type") == "chat" and user_id:
                         try:
                             print(f"메시지 저장 시작: 그룹 채팅방 {chatroom_id}")
+                            # 내용 확인을 위한 디버깅 로그
+                            print(f"저장할 메시지 내용: {message_data.get('content')}")
+                            
                             message_create = GroupChatMessageCreate(
                                 chatroom_id=chatroom_id,
                                 sender_id=int(user_id),
-                                content=message_data.get("content")
+                                content=message_data.get("content")  # 필드명 일치
                             )
-                            await create_chat_message(db, message_create)
-                            print(f"메시지 저장 완료: 그룹 채팅방 {chatroom_id}")
+                            
+                            saved_message = await create_chat_message(db, message_create)
+                            print(f"메시지 저장 성공, ID: {saved_message.id}")
+                            
                         except Exception as e:
                             print(f"메시지 저장 실패: {str(e)}")
+                            import traceback
+                            print(f"상세 오류: {traceback.format_exc()}")
                     
                     # 메시지를 발신자를 제외한 모든 사용자에게 전달
                     print(f"메시지 브로드캐스트 시작: 그룹 채팅방 {chatroom_id}")
