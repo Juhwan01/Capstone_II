@@ -11,4 +11,5 @@ __all__ = [
     "recipe",
     "user",
     "update_user_role"
+    "update_user_info" 
 ]

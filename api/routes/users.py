@@ -11,7 +11,7 @@ from schemas.users import (
     UserProfile, UserProfileCreate,
     UserProfileUpdate, RecommendationResponse, TrustScoreUpdate
 )
-from schemas.auth import User
+from schemas.auth import User, UserUpdate
 from services.recommender import RecipeRecommender
 from models.models import UserRole
 
@@ -24,6 +24,46 @@ async def read_user_me(
 ):
     """Get current user"""
     return current_user
+
+@router.put("/me", response_model=User)
+async def update_my_info(
+    *,
+    db: AsyncSession = Depends(get_async_db),
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """현재 사용자 정보 업데이트"""
+    try:
+        updated_user = await crud_auth.update_user_info(db, current_user.id, user_update)
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return updated_user
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/{user_id}", response_model=User)
+async def update_user_by_id(
+    *,
+    db: AsyncSession = Depends(get_async_db),
+    user_id: int,
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """특정 사용자 정보 업데이트 (관리자 또는 본인만 가능)"""
+    # 권한 체크: 본인 또는 관리자만 수정 가능
+    if current_user.id != user_id and current_user.role != UserRole.CHEF:
+        raise HTTPException(
+            status_code=403,
+            detail="Not enough permissions to modify other users"
+        )
+    
+    try:
+        updated_user = await crud_auth.update_user_info(db, user_id, user_update)
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return updated_user
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/{user_id}", response_model=User)
 async def get_user_by_id(

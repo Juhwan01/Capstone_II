@@ -41,5 +41,6 @@ class CRUDUser(CRUDBase[UserProfile, UserProfileCreate, UserProfileUpdate]):
         await db.commit()
         await db.refresh(db_obj)
         return db_obj
+    
 
 user = CRUDUser(UserProfile)

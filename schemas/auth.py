@@ -48,3 +48,13 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
+        
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
+    nickname: Optional[str] = Field(None, min_length=2, max_length=50)
+    password: Optional[str] = Field(None, min_length=8)
+    address_name: Optional[str] = Field(None, min_length=3, max_length=50)
+    zone_no: Optional[str] = Field(None, min_length=3, max_length=50)
+    location_lat: Optional[float] = None
+    location_lon: Optional[float] = None
