@@ -57,30 +57,30 @@ class RecipeRecommender:
         limits = user_profile.nutrition_limits
         
         # 각 영양소별 제한 체크
-        if recipe.calories and limits.get('max_calories'):
-            if recipe.calories > limits['max_calories']:
+        if recipe.calories and hasattr(limits, 'max_calories') and limits.max_calories:
+            if recipe.calories > limits.max_calories:
                 return 0.0  # 제한 초과시 즉시 0점 반환
-            scores.append(1 - (recipe.calories / limits['max_calories']))
+            scores.append(1 - (recipe.calories / limits.max_calories))
         
-        if recipe.carbs and limits.get('max_carbs'):
-            if float(recipe.carbs) > float(limits['max_carbs']):
+        if recipe.carbs and hasattr(limits, 'max_carbs') and limits.max_carbs:
+            if float(recipe.carbs) > float(limits.max_carbs):
                 return 0.0
-            scores.append(1 - (float(recipe.carbs) / float(limits['max_carbs'])))
+            scores.append(1 - (float(recipe.carbs) / float(limits.max_carbs)))
         
-        if recipe.protein and limits.get('max_protein'):
-            if float(recipe.protein) > float(limits['max_protein']):
+        if recipe.protein and hasattr(limits, 'max_protein') and limits.max_protein:
+            if float(recipe.protein) > float(limits.max_protein):
                 return 0.0
-            scores.append(1 - (float(recipe.protein) / float(limits['max_protein'])))
+            scores.append(1 - (float(recipe.protein) / float(limits.max_protein)))
         
-        if recipe.fat and limits.get('max_fat'):
-            if float(recipe.fat) > float(limits['max_fat']):
+        if recipe.fat and hasattr(limits, 'max_fat') and limits.max_fat:
+            if float(recipe.fat) > float(limits.max_fat):
                 return 0.0
-            scores.append(1 - (float(recipe.fat) / float(limits['max_fat'])))
+            scores.append(1 - (float(recipe.fat) / float(limits.max_fat)))
         
-        if recipe.sodium and limits.get('max_sodium'):
-            if float(recipe.sodium) > float(limits['max_sodium']):
+        if recipe.sodium and hasattr(limits, 'max_sodium') and limits.max_sodium:
+            if float(recipe.sodium) > float(limits.max_sodium):
                 return 0.0
-            scores.append(1 - (float(recipe.sodium) / float(limits['max_sodium'])))
+            scores.append(1 - (float(recipe.sodium) / float(limits.max_sodium)))
         
         return sum(scores) / len(scores) if scores else 1.0
 
@@ -116,7 +116,7 @@ class RecipeRecommender:
             )
 
     async def get_recommendations(
-    self, db: AsyncSession, user_id: int
+        self, db: AsyncSession, user_id: int
     ) -> List[RecommendationResponse]:
         # 기존 코드와 유사하지만, 재료 매칭 로직 개선
         ingredient_result = await db.execute(
@@ -157,16 +157,16 @@ class RecipeRecommender:
                 nutrition_match = {}
                 if hasattr(user_profile, 'nutrition_limits') and user_profile.nutrition_limits:
                     limits = user_profile.nutrition_limits
-                    if recipe.calories and limits.get('max_calories'):
-                        nutrition_match['calories'] = recipe.calories / limits['max_calories']
-                    if recipe.carbs and limits.get('max_carbs'):
-                        nutrition_match['carbs'] = float(recipe.carbs) / float(limits['max_carbs'])
-                    if recipe.protein and limits.get('max_protein'):
-                        nutrition_match['protein'] = float(recipe.protein) / float(limits['max_protein'])
-                    if recipe.fat and limits.get('max_fat'):
-                        nutrition_match['fat'] = float(recipe.fat) / float(limits['max_fat'])
-                    if recipe.sodium and limits.get('max_sodium'):
-                        nutrition_match['sodium'] = float(recipe.sodium) / float(limits['max_sodium'])
+                    if recipe.calories and hasattr(limits, 'max_calories') and limits.max_calories:
+                        nutrition_match['calories'] = recipe.calories / limits.max_calories
+                    if recipe.carbs and hasattr(limits, 'max_carbs') and limits.max_carbs:
+                        nutrition_match['carbs'] = float(recipe.carbs) / float(limits.max_carbs)
+                    if recipe.protein and hasattr(limits, 'max_protein') and limits.max_protein:
+                        nutrition_match['protein'] = float(recipe.protein) / float(limits.max_protein)
+                    if recipe.fat and hasattr(limits, 'max_fat') and limits.max_fat:
+                        nutrition_match['fat'] = float(recipe.fat) / float(limits.max_fat)
+                    if recipe.sodium and hasattr(limits, 'max_sodium') and limits.max_sodium:
+                        nutrition_match['sodium'] = float(recipe.sodium) / float(limits.max_sodium)
                 
                 # 레시피 점수 계산
                 score = self.calculate_recipe_score(
