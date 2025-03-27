@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from datetime import datetime
 from pydantic import BaseModel, Field
 from .recipes import Recipe
@@ -13,10 +13,6 @@ class NutritionLimits(BaseModel):
 
 # 기본 사용자 프로필 스키마
 class UserProfileBase(BaseModel):
-    owned_ingredients: Dict[str, float] = Field(
-        default={},
-        description="보유 중인 재료 목록"
-    )
     nutrition_limits: NutritionLimits = Field(
         default_factory=NutritionLimits,
         description="영양소 제한 설정"
@@ -28,7 +24,7 @@ class UserProfileCreate(UserProfileBase):
 
 # 사용자 프로필 업데이트 스키마
 class UserProfileUpdate(BaseModel):
-    owned_ingredients: Optional[Dict[str, float]] = None
+    owned_ingredients: Optional[Dict[str, List[Union[str,int]]]] = None
     nutrition_limits: Optional[NutritionLimits] = None
 
 # 사용자 프로필 응답 스키마

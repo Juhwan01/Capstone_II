@@ -1,6 +1,7 @@
 from .auth import Token, TokenData, User, UserCreate, UserUpdate
 from .recipes import Recipe, RecipeCreate, RecipeUpdate
 from .users import UserProfile, UserProfileCreate, UserProfileUpdate, RecommendationResponse, TrustScoreUpdate
+from .qvalue import QValue, QValueCreate, QValueUpdate
 
 __all__ = [
     "Token",
@@ -15,5 +16,8 @@ __all__ = [
     "UserProfileCreate",
     "UserProfileUpdate",
     "RecommendationResponse",
-    "TrustScoreUpdate"
+    "TrustScoreUpdate",
+    "QValue",
+    "QValueCreate",
+    "QValueUpdate",
 ]

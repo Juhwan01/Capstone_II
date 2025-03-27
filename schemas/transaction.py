@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Tuple
+from typing import List
 from datetime import datetime
 
 class TransDTO(BaseModel):
@@ -8,9 +8,9 @@ class TransDTO(BaseModel):
     appointment_time: datetime
 
 class StatusDTO(BaseModel):
-    trans_id: int
+    sale_id: int
 
 class ArriveDTO(BaseModel):
-    trans_id:int
+    sale_id:int
     id:int
-    location: Tuple[float, float]
+    location: List[float]

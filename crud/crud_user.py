@@ -24,25 +24,6 @@ class CRUDUser(CRUDBase[UserProfile, UserProfileCreate, UserProfileUpdate]):
         await db.refresh(db_obj)
         return db_obj
 
-    async def update_ingredients(
-        self, db: AsyncSession, *, user_id: int, ingredients: Dict[str, float]
-    ) -> Optional[UserProfile]:
-        result = await db.execute(
-            select(UserProfile).where(UserProfile.user_id == user_id)
-        )
-        db_obj = result.scalar_one_or_none()
-        if not db_obj:
-            return None
-
-        current_ingredients = db_obj.owned_ingredients or {}
-        for ingredient, amount in ingredients.items():
-            current_ingredients[ingredient] = current_ingredients.get(ingredient, 0) + amount
-        
-        db_obj.owned_ingredients = current_ingredients
-        await db.commit()
-        await db.refresh(db_obj)
-        return db_obj
-
     async def update_recipe_history(
         self, db: AsyncSession, *, user_id: int, recipe_id: int
     ) -> Optional[UserProfile]:
@@ -60,5 +41,6 @@ class CRUDUser(CRUDBase[UserProfile, UserProfileCreate, UserProfileUpdate]):
         await db.commit()
         await db.refresh(db_obj)
         return db_obj
+    
 
 user = CRUDUser(UserProfile)

@@ -1,10 +1,11 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean, DateTime, Numeric, Enum as SQLAlchemyEnum, func, Text
+from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, Boolean, DateTime, Numeric, Enum as SQLAlchemyEnum, func, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 from db.base import Base
 from geoalchemy2 import Geometry
+
 
 class UserRole(str, Enum):
     CHEF = "셰프"
@@ -25,25 +26,31 @@ class User(Base):
     trust_score = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    address_name = Column(String, nullable=False)
+    zone_no = Column(String, nullable=False)
+    location_lat = Column(Float, nullable=False)
+    location_lon = Column(Float, nullable=False)
+    profile_image_url = Column(String, nullable=True)  
     
     # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     recipes = relationship("Recipe", back_populates="creator")
     q_values = relationship("QValue", back_populates="user")
     requests = relationship("IngredientRequest", back_populates="user", cascade="all, delete-orphan")
-    chats_as_user1 = relationship("Chat", foreign_keys="[Chat.user1_id]", back_populates="user1")
-    chats_as_user2 = relationship("Chat", foreign_keys="[Chat.user2_id]", back_populates="user2")
+    chats_as_buyer = relationship("Chat", foreign_keys="[Chat.buyer_id]", back_populates="buyer")
+    chats_as_seller = relationship("Chat", foreign_keys="[Chat.seller_id]", back_populates="seller")
     sales = relationship("Sale", back_populates="seller", cascade="all, delete-orphan")
     group_purchases = relationship("GroupPurchase", back_populates="creator", lazy="dynamic")
     group_purchase_participations = relationship("GroupPurchaseParticipant", back_populates="user", lazy="dynamic")  
+    group_chat_participations = relationship("GroupChatParticipant", back_populates="user")
+    messages = relationship("GroupChatMessage", back_populates="sender")
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-    owned_ingredients = Column(JSON, default={})
-    nutrition_limits = Column(JSON, default={})  # 추가된 부분
+    nutrition_limits = Column(JSON, default={})  # 영양소 제한만 남김
     recipe_history = Column(JSON, default=[])
     ratings = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -87,48 +94,72 @@ class Ingredient(Base):
     category = Column(String, nullable=False)
     expiry_date = Column(DateTime, nullable=False)
     amount = Column(Integer , nullable= False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
 
-    requests = relationship("IngredientRequest", back_populates="ingredient", cascade="all, delete-orphan")
-    sales = relationship("Sale", back_populates="ingredient", cascade="all, delete-orphan")
+    requests = relationship("IngredientRequest", back_populates="ingredient")
+    sales = relationship("Sale", back_populates="ingredient")
 
 class Sale(Base):
     __tablename__ = 'sales'
     id = Column(Integer, primary_key=True, autoincrement=True)  # 판매 고유 ID
     ingredient_name = Column(String)
-    ingredient_id = Column(Integer, ForeignKey('ingredients.id'), nullable=False)  # 식재료 ID (Foreign Key)
+    ingredient_id = Column(Integer, ForeignKey('ingredients.id'), nullable=True, default=None)  # 식재료 ID (Foreign Key)
     seller_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # 판매자 ID (Foreign Key)
     value = Column(Float, nullable=False)  # 판매 가격
+    category = Column(String , nullable=False)
     location_lat = Column(Float, nullable=False)  # 판매 위치 위도
     location_lon = Column(Float, nullable=False)  # 판매 위치 경도
+    title = Column (String , nullable=False)
     status = Column(String, nullable=False, default="Available")  # 판매 상태
     expiry_date = Column(DateTime, nullable=False)
+    contents = Column(String , nullable= False ) # 내용 추가
+    amount = Column(Integer, nullable=False)
+    
+    seller = relationship("User", back_populates="sales")  # 판매자와의 관계
+    ingredient = relationship("Ingredient", back_populates="sales")  # 식재료와의 관계
+    images = relationship("Image", back_populates="sale", cascade="all, delete")  # 판매 이미지 관계
+    chats = relationship("Chat", back_populates="item", cascade="all, delete")  # Chat과 연결됨 (새롭게 추가!)
 
-    ingredient = relationship('Ingredient', back_populates='sales')  # Ingredient와의 관계 정의
-    seller = relationship("User", back_populates="sales")  # 관계 설정
+class Image(Base):
+    __tablename__ = "images"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sale_id = Column(Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=True)
+    image_url = Column(String, nullable=True)
+    group_purchase_id = Column(Integer, ForeignKey("group_purchases.id", ondelete="CASCADE"), nullable=True)
+
+    sale = relationship("Sale", back_populates="images")
+    group_purchase = relationship("GroupPurchase", back_populates="images")
 
 class Transaction(Base):
     __tablename__ = 'transaction'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     buyer_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    sale_id = Column(Integer, ForeignKey('sales.id'), nullable=False)
+    sale_id = Column(Integer, ForeignKey('sales.id'), nullable=True)
     appointment_time = Column(DateTime, nullable=False)
     seller_time = Column(DateTime, nullable=True)
     buyer_time = Column(DateTime, nullable=True)
-    
+    status = Column(String(50), default='Trading')
+
     buyer = relationship('User', foreign_keys=[buyer_id], backref='bought_transactions')
     request = relationship('Sale', backref='transactions')
+    __table_args__ = (
+        UniqueConstraint('sale_id', 'status', name='uq_sale_status'),
+    )
 
 class Chat(Base):
     __tablename__ = "chats"
     id = Column(Integer, primary_key=True, index=True)
-    user1_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    user2_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    item_id = Column(Integer, ForeignKey("sales.id"), nullable=False)  # 상품 ID 추가
     created_at = Column(DateTime, default=func.now())
 
-    user1 = relationship("User", foreign_keys=[user1_id], back_populates="chats_as_user1", lazy="joined")
-    user2 = relationship("User", foreign_keys=[user2_id], back_populates="chats_as_user2", lazy="joined")
-    messages = relationship("Message", back_populates="chat", lazy="joined")  # 즉시 로드
+    buyer = relationship("User", foreign_keys=[buyer_id], back_populates="chats_as_buyer", lazy="joined")
+    seller = relationship("User", foreign_keys=[seller_id], back_populates="chats_as_seller", lazy="joined")
+    item = relationship("Sale", back_populates="chats",lazy="joined")  # Sale(판매 상품)과의 관계
+    messages = relationship("Message", back_populates="chat", lazy="joined")
 
 class Message(Base):
     __tablename__ = "messages"
@@ -154,7 +185,7 @@ class Recipe(Base):
     sodium = Column(Numeric(10, 2))
     image_small = Column(String(255))
     image_large = Column(String(255))
-    ingredients = Column(Text)
+    ingredients = Column(JSONB)
     instructions = Column(JSONB)
     cooking_img = Column(JSONB)
 
@@ -174,7 +205,10 @@ class GroupPurchase(Base):
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    price = Column(Float, nullable=False)
+    price = Column(Float, nullable=False)  # 공구 가격
+    original_price = Column(Float, nullable=False)  # 원래 가격
+    saving_price = Column(Float, nullable=False)  # 절약 가능 금액
+    category = Column(String, nullable=False)  # 카테고리 추가
     max_participants = Column(Integer, nullable=False)
     current_participants = Column(Integer, default=0)
     status = Column(
@@ -190,25 +224,63 @@ class GroupPurchase(Base):
     # Relationships
     creator = relationship("User", back_populates="group_purchases")
     participants = relationship("GroupPurchaseParticipant", back_populates="group_purchase")
+    # 기존 GroupPurchase 모델에 채팅방 관계 추가
+    chatroom = relationship("GroupChatroom", back_populates="group_purchase", uselist=False)
+    images = relationship("Image", back_populates="group_purchase", cascade="all, delete")  # 이미지 관계 추가
 
 class GroupPurchaseParticipant(Base):
     __tablename__ = "group_purchase_participants"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, ForeignKey("users.username"), nullable=False)  # user_id 대신 username으로 변경
+    username = Column(String, ForeignKey("users.username", onupdate="CASCADE"), nullable=False)
     group_buy_id = Column(Integer, ForeignKey("group_purchases.id"), nullable=False)
     joined_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     group_purchase = relationship("GroupPurchase", back_populates="participants")
-    user = relationship("User", back_populates="group_purchase_participations", foreign_keys=[username])  # foreign_key 변경
+    user = relationship("User", back_populates="group_purchase_participations", foreign_keys=[username])
 
+class GroupChatroom(Base):
+    __tablename__ = "group_chatrooms"
 
+    id = Column(Integer, primary_key=True, index=True)
+    group_purchase_id = Column(Integer, ForeignKey("group_purchases.id"), nullable=False, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
+    # Relationships
+    group_purchase = relationship("GroupPurchase", back_populates="chatroom")
+    messages = relationship("GroupChatMessage", back_populates="chatroom")
+    participants = relationship("GroupChatParticipant", back_populates="chatroom")
+
+class GroupChatParticipant(Base):
+    __tablename__ = "group_chat_participants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    chatroom_id = Column(Integer, ForeignKey("group_chatrooms.id"), nullable=False)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="group_chat_participations")
+    chatroom = relationship("GroupChatroom", back_populates="participants")
+
+class GroupChatMessage(Base):
+    __tablename__ = "group_chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    chatroom_id = Column(Integer, ForeignKey("group_chatrooms.id"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    chatroom = relationship("GroupChatroom", back_populates="messages")
+    sender = relationship("User", back_populates="messages")
+
+    
 class TempReceipt(Base):
     __tablename__ = 'temp_receipts'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
-    value = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
